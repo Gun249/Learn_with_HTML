@@ -112,16 +112,38 @@
     footer {
       border-top: 1px solid var(--border); padding: 24px 32px;
       max-width: 900px; margin: 0 auto;
-      display: flex; align-items: center; justify-content: space-between; flex-wrap: gap;
+      display: flex; align-items: center; justify-content: space-between;
+      flex-wrap: wrap; gap: 12px;
       font-size: 13px; color: var(--text-muted);
     }
     footer a { color: var(--accent2); text-decoration: none; }
     footer a:hover { text-decoration: underline; }
 
-    @media (max-width: 600px) {
-      .hero { padding: 48px 20px 36px; }
-      .toolbar, .grid-wrap { padding-left: 20px; padding-right: 20px; }
-      .hero h1 { font-size: 32px; }
+    /* TOOLBAR WRAP */
+    .toolbar { flex-wrap: wrap; }
+
+    /* RESPONSIVE — tablet */
+    @media (max-width: 768px) {
+      .hero { padding: 52px 24px 40px; }
+      .toolbar, .grid-wrap, footer { padding-left: 24px; padding-right: 24px; }
+      .hero h1 { font-size: clamp(28px, 7vw, 42px); }
+      .hero-meta { gap: 10px; }
+      .toolbar { flex-direction: column; align-items: stretch; }
+      .search-wrap { width: 100%; }
+      .filter-wrap { display: flex; flex-wrap: wrap; gap: 8px; }
+    }
+
+    /* RESPONSIVE — mobile */
+    @media (max-width: 480px) {
+      .hero { padding: 40px 16px 32px; }
+      .toolbar, .grid-wrap, footer { padding-left: 16px; padding-right: 16px; }
+      .hero h1 { font-size: 28px; }
+      .hero p { font-size: 15px; }
+      .badge { font-size: 12px; padding: 5px 10px; }
+      .grid { grid-template-columns: 1fr; }
+      .card { padding: 20px; }
+      footer { flex-direction: column; align-items: flex-start; gap: 8px; }
+      .filter-btn { font-size: 12px; padding: 8px 12px; }
     }
   </style>
 </head>
@@ -143,10 +165,12 @@
     <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
     <input id="search" type="text" placeholder="Search topics…" oninput="filterCards()">
   </div>
-  <button class="filter-btn active" data-cat="all" onclick="setFilter(this)">All</button>
-  <button class="filter-btn" data-cat="Image Processing" onclick="setFilter(this)">Image Processing</button>
-  <button class="filter-btn" data-cat="Networking" onclick="setFilter(this)">Networking</button>
-  <button class="filter-btn" data-cat="Finance" onclick="setFilter(this)">Finance</button>
+  <div class="filter-wrap">
+    <button class="filter-btn active" data-cat="all" onclick="setFilter(this)">All</button>
+    <button class="filter-btn" data-cat="Image Processing" onclick="setFilter(this)">Image Processing</button>
+    <button class="filter-btn" data-cat="Networking" onclick="setFilter(this)">Networking</button>
+    <button class="filter-btn" data-cat="Finance" onclick="setFilter(this)">Finance</button>
+  </div>
 </div>
 
 <div class="grid-wrap">
