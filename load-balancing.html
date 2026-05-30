@@ -1,0 +1,995 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Learn: Load Balancing — Distributing Traffic Across Servers</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0f1117; --surface: #1a1d27; --surface2: #252836; --border: #2e3147;
+      --text: #e2e8f0; --text-muted: #8892a4; --accent: #6366f1; --accent2: #818cf8;
+      --green: #10b981; --yellow: #f59e0b; --red: #ef4444; --code-bg: #0d0f17;
+      --radius: 8px;
+      --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --mono: "Fira Code", "Cascadia Code", Consolas, monospace;
+    }
+    body { font-family: var(--font); background: var(--bg); color: var(--text); line-height: 1.7; display: flex; flex-direction: column; min-height: 100vh; }
+    .layout { display: flex; flex: 1; }
+
+    nav { width: 240px; min-width: 240px; background: var(--surface); border-right: 1px solid var(--border); padding: 24px 16px; position: sticky; top: 0; height: 100vh; overflow-y: auto; }
+    nav .logo { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.12em; color: var(--accent); margin-bottom: 20px; display: flex; align-items: center; gap: 6px; text-decoration: none; }
+    nav .logo:hover { color: var(--accent2); }
+    nav h2 { font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted); margin-bottom: 12px; }
+    nav ol { list-style: none; counter-reset: toc; }
+    nav ol li { counter-increment: toc; }
+    nav ol li a { display: block; padding: 6px 8px; color: var(--text-muted); text-decoration: none; font-size: 13px; border-radius: 4px; transition: all 0.15s; }
+    nav ol li a::before { content: counter(toc) ". "; color: var(--accent2); font-weight: 600; }
+    nav ol li a:hover { color: var(--text); background: var(--surface2); }
+    .sim-links { margin-top: 20px; }
+    .sim-links h2 { font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted); margin-bottom: 10px; }
+    .sim-links a { display: block; padding: 6px 8px; color: var(--text-muted); text-decoration: none; font-size: 13px; border-radius: 4px; transition: all 0.15s; }
+    .sim-links a::before { content: "▶ "; color: var(--green); font-size: 10px; }
+    .sim-links a:hover { color: var(--text); background: var(--surface2); }
+
+    .mobile-topbar { display: none; background: var(--surface); border-bottom: 1px solid var(--border); padding: 12px 20px; position: sticky; top: 0; z-index: 100; }
+    .mobile-topbar a { color: var(--accent2); text-decoration: none; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; }
+    .mobile-topbar a:hover { color: var(--text); }
+
+    main { flex: 1; max-width: 900px; padding: 48px 56px; overflow-x: hidden; }
+
+    header { margin-bottom: 48px; border-bottom: 1px solid var(--border); padding-bottom: 32px; }
+    header .tag { display: inline-block; background: var(--accent); color: white; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; padding: 3px 10px; border-radius: 20px; margin-bottom: 12px; }
+    header h1 { font-size: 40px; font-weight: 800; line-height: 1.2; margin-bottom: 12px; }
+    header .meta { font-size: 13px; color: var(--text-muted); }
+    header .essence { margin-top: 16px; padding: 16px 20px; background: var(--surface); border-left: 3px solid var(--accent); border-radius: 0 var(--radius) var(--radius) 0; font-size: 18px; font-style: italic; color: var(--accent2); }
+
+    section { margin-bottom: 56px; }
+    section h2 { font-size: 24px; font-weight: 700; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; }
+    section h2 .num { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; background: var(--accent); color: white; font-size: 13px; font-weight: 700; border-radius: 50%; flex-shrink: 0; }
+    section h3 { font-size: 17px; font-weight: 600; margin: 24px 0 10px; color: var(--accent2); }
+    section p { margin-bottom: 14px; }
+    section ul, section ol { padding-left: 24px; margin-bottom: 14px; }
+    section li { margin-bottom: 6px; }
+
+    pre { background: var(--code-bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; overflow-x: auto; margin: 16px 0; font-family: var(--mono); font-size: 13.5px; line-height: 1.6; }
+    code { font-family: var(--mono); font-size: 13px; }
+    :not(pre) > code { background: var(--surface2); padding: 2px 6px; border-radius: 4px; color: var(--accent2); }
+
+    table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 14px; }
+    th { background: var(--surface2); padding: 10px 14px; text-align: left; font-weight: 600; border: 1px solid var(--border); color: var(--accent2); }
+    td { padding: 10px 14px; border: 1px solid var(--border); vertical-align: top; }
+    tr:nth-child(even) td { background: var(--surface); }
+
+    .callout { padding: 16px 20px; border-radius: var(--radius); margin: 16px 0; border-left: 3px solid; }
+    .callout.info { background: #1e2a4a; border-color: #3b82f6; }
+    .callout.warn { background: #2a2010; border-color: var(--yellow); }
+    .callout.tip  { background: #0f2a1e; border-color: var(--green); }
+    .callout.err  { background: #2a1010; border-color: var(--red); }
+    .callout strong { display: block; margin-bottom: 6px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; }
+
+    .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; margin: 20px 0; }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; }
+    .card h4 { font-size: 15px; font-weight: 700; margin-bottom: 8px; color: var(--accent2); }
+    .card p { font-size: 13.5px; color: var(--text-muted); margin: 0; }
+    .card .analogy { font-size: 12px; color: var(--green); margin-top: 8px; font-style: italic; }
+
+    .cheatsheet { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+    .cheatsheet-header { background: var(--surface2); padding: 12px 20px; font-weight: 700; font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--accent2); border-bottom: 1px solid var(--border); }
+    .cheatsheet-body { padding: 4px 0; }
+    .cheatsheet-row { display: flex; align-items: baseline; padding: 10px 20px; border-bottom: 1px solid var(--border); gap: 16px; }
+    .cheatsheet-row:last-child { border-bottom: none; }
+    .cheatsheet-key { font-family: var(--mono); font-size: 13px; color: var(--accent2); min-width: 200px; flex-shrink: 0; }
+    .cheatsheet-val { font-size: 13.5px; color: var(--text-muted); }
+
+    .sources { border-top: 1px solid var(--border); padding-top: 24px; margin-top: 48px; }
+    .sources h2 { font-size: 16px; color: var(--text-muted); margin-bottom: 12px; }
+    .sources a { color: var(--accent2); font-size: 13px; word-break: break-all; }
+    .sources li { margin-bottom: 6px; }
+
+    .next-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 16px 0; }
+    .next-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; }
+    .next-card .icon { font-size: 24px; margin-bottom: 8px; }
+    .next-card h4 { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+    .next-card p { font-size: 12px; color: var(--text-muted); margin: 0; }
+
+    /* Simulation */
+    .ssb { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin: 24px 0; }
+    .ssb-title { background: var(--surface2); border-bottom: 1px solid var(--border); padding: 10px 16px; font-size: 13px; font-weight: 700; color: var(--green); letter-spacing: 0.04em; }
+    .sim-toolbar { background: var(--surface2); padding: 12px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .sim-toolbar-label { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; }
+    .sim-btn { background: var(--surface); border: 1px solid var(--border); color: var(--text-muted); padding: 6px 14px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.15s; font-family: var(--font); }
+    .sim-btn:hover { border-color: var(--accent); color: var(--accent2); }
+    .sim-btn.active { background: var(--accent); border-color: var(--accent); color: white; }
+    .sim-canvas-wrap { padding: 16px 20px; }
+    #lb-canvas { width: 100%; border-radius: 6px; display: block; background: #090b12; }
+    .sim-controls { padding: 16px 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 16px 28px; border-top: 1px solid var(--border); }
+    .sim-control-row { display: flex; flex-direction: column; gap: 6px; }
+    .sim-control-row label { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.07em; display: flex; justify-content: space-between; }
+    .sim-control-row label span { color: var(--accent2); font-family: var(--mono); }
+    input[type=range] { -webkit-appearance: none; width: 100%; height: 4px; border-radius: 2px; background: var(--border); outline: none; cursor: pointer; }
+    input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; background: var(--accent); cursor: pointer; border: 2px solid var(--bg); }
+    .sim-score-bar { padding: 14px 20px; border-top: 1px solid var(--border); display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+    .sim-stat { display: flex; flex-direction: column; gap: 3px; }
+    .sim-stat-label { font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.07em; }
+    .sim-stat-value { font-size: 20px; font-weight: 800; color: var(--accent2); font-family: var(--mono); }
+    .sim-stat-value.green { color: var(--green); }
+    .sim-stat-value.yellow { color: var(--yellow); }
+    .sim-stat-value.small { font-size: 13px; }
+    .sim-divider { width: 1px; height: 38px; background: var(--border); flex-shrink: 0; }
+
+    /* Steps */
+    .steps { display: flex; flex-direction: column; }
+    .step { display: flex; gap: 20px; padding: 18px 0; border-bottom: 1px solid var(--border); }
+    .step:last-child { border-bottom: none; }
+    .step-num { width: 32px; height: 32px; border-radius: 50%; background: var(--accent); color: white; font-weight: 700; font-size: 14px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px; }
+    .step-content h4 { font-size: 16px; font-weight: 700; margin-bottom: 6px; }
+    .step-content p { font-size: 14px; color: var(--text-muted); margin: 0; }
+
+    /* SVG arch diagram */
+    .arch-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; margin: 20px 0; overflow-x: auto; }
+
+    @media print { nav { display: none; } body { background: white; color: black; } pre { background: #f5f5f5; } }
+    @media (max-width: 768px) {
+      nav { display: none; }
+      .mobile-topbar { display: block; }
+      main { padding: 32px 24px; }
+      header h1 { font-size: 32px; }
+      .next-grid { grid-template-columns: 1fr 1fr; }
+      .cards { grid-template-columns: 1fr; }
+      .sim-controls { grid-template-columns: 1fr; }
+      table { font-size: 13px; }
+    }
+    @media (max-width: 480px) {
+      main { padding: 24px 16px; }
+      header h1 { font-size: 26px; }
+      header .essence { font-size: 15px; }
+      .next-grid { grid-template-columns: 1fr; }
+      .cheatsheet-row { flex-direction: column; gap: 4px; }
+      .cheatsheet-key { min-width: unset; }
+      pre { font-size: 12px; padding: 14px; }
+      section h2 { font-size: 20px; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="mobile-topbar">
+  <a href="index.html">
+    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+    Learn Library
+  </a>
+</div>
+
+<div class="layout">
+<nav>
+  <a class="logo" href="index.html">
+    <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+    Learn Library
+  </a>
+  <h2>Contents</h2>
+  <ol>
+    <li><a href="#essence">One-Line Essence</a></li>
+    <li><a href="#why">Why It Matters</a></li>
+    <li><a href="#concepts">Core Concepts</a></li>
+    <li><a href="#how">How It Works</a></li>
+    <li><a href="#examples">Examples</a></li>
+    <li><a href="#mistakes">Common Mistakes</a></li>
+    <li><a href="#cheatsheet">Cheat Sheet</a></li>
+    <li><a href="#next">What to Learn Next</a></li>
+  </ol>
+  <div class="sim-links">
+    <h2>Simulations</h2>
+    <a href="#sim-lb">Algorithm Visualizer</a>
+  </div>
+</nav>
+
+<main>
+  <header>
+    <span class="tag">Networking · Deep Dive</span>
+    <h1>Load Balancing</h1>
+    <div class="meta">Verified: May 2026 · Sources: 7 references</div>
+    <div class="essence">A traffic cop between clients and servers — distributing requests so no single machine drowns while others idle.</div>
+  </header>
+
+  <section id="essence"></section>
+
+  <section id="why">
+    <h2><span class="num">2</span> Why It Matters</h2>
+
+    <p>Every server has a hard ceiling — a point where CPU, RAM, or network bandwidth saturates. Load balancing shatters that ceiling by spreading work across a fleet, giving you three compounding guarantees simultaneously.</p>
+
+    <div class="arch-wrap">
+      <svg viewBox="0 0 740 210" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;">
+        <defs>
+          <marker id="ar" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#ef4444"/></marker>
+          <marker id="ag" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#10b981"/></marker>
+        </defs>
+        <!-- Without LB label -->
+        <text x="8" y="18" fill="#8892a4" font-size="12" font-family="system-ui" font-weight="700">❌ Without Load Balancing</text>
+        <!-- Clients -->
+        <rect x="8" y="30" width="70" height="32" rx="6" fill="#1a1d27" stroke="#6366f1" stroke-width="1.5"/>
+        <text x="43" y="51" fill="#818cf8" font-size="11" text-anchor="middle" font-family="system-ui">N Clients</text>
+        <!-- Arrows converging on one server -->
+        <line x1="78" y1="40" x2="155" y2="48" stroke="#ef4444" stroke-width="1.5" marker-end="url(#ar)"/>
+        <line x1="78" y1="46" x2="155" y2="52" stroke="#ef4444" stroke-width="1.5" marker-end="url(#ar)"/>
+        <line x1="78" y1="52" x2="155" y2="56" stroke="#ef4444" stroke-width="1.5" marker-end="url(#ar)"/>
+        <line x1="78" y1="56" x2="155" y2="60" stroke="#ef4444" stroke-width="1.2" stroke-dasharray="4,3" marker-end="url(#ar)"/>
+        <!-- Overloaded server -->
+        <rect x="155" y="30" width="90" height="50" rx="6" fill="#2a1010" stroke="#ef4444" stroke-width="2"/>
+        <text x="200" y="52" fill="#ef4444" font-size="12" text-anchor="middle" font-family="system-ui" font-weight="700">Server</text>
+        <text x="200" y="68" fill="#ef4444" font-size="10" text-anchor="middle" font-family="system-ui">🔥 CPU 100%</text>
+        <!-- Idle servers grayed out -->
+        <rect x="155" y="92" width="90" height="32" rx="5" fill="#1a1d27" stroke="#2e3147" stroke-width="1.5"/>
+        <text x="200" y="113" fill="#2e3147" font-size="10" text-anchor="middle" font-family="system-ui">Server (idle)</text>
+        <rect x="155" y="134" width="90" height="32" rx="5" fill="#1a1d27" stroke="#2e3147" stroke-width="1.5"/>
+        <text x="200" y="155" fill="#2e3147" font-size="10" text-anchor="middle" font-family="system-ui">Server (idle)</text>
+        <text x="8" y="192" fill="#ef4444" font-size="11" font-family="system-ui">One server overwhelmed · others unused · users get timeouts</text>
+
+        <!-- With LB label -->
+        <text x="390" y="18" fill="#8892a4" font-size="12" font-family="system-ui" font-weight="700">✅ With Load Balancing</text>
+        <rect x="390" y="30" width="70" height="32" rx="6" fill="#1a1d27" stroke="#6366f1" stroke-width="1.5"/>
+        <text x="425" y="51" fill="#818cf8" font-size="11" text-anchor="middle" font-family="system-ui">N Clients</text>
+        <!-- Arrow to LB -->
+        <line x1="460" y1="46" x2="520" y2="46" stroke="#10b981" stroke-width="2" marker-end="url(#ag)"/>
+        <!-- LB box -->
+        <rect x="520" y="22" width="80" height="48" rx="6" fill="#0f2a1e" stroke="#10b981" stroke-width="2"/>
+        <text x="560" y="43" fill="#10b981" font-size="12" text-anchor="middle" font-family="system-ui" font-weight="700">LB</text>
+        <text x="560" y="58" fill="#10b981" font-size="9.5" text-anchor="middle" font-family="system-ui">Balancer</text>
+        <!-- LB → 3 servers -->
+        <line x1="600" y1="36" x2="645" y2="25" stroke="#10b981" stroke-width="1.5" marker-end="url(#ag)"/>
+        <line x1="600" y1="46" x2="645" y2="46" stroke="#10b981" stroke-width="1.5" marker-end="url(#ag)"/>
+        <line x1="600" y1="56" x2="645" y2="67" stroke="#10b981" stroke-width="1.5" marker-end="url(#ag)"/>
+        <!-- 3 healthy servers -->
+        <rect x="645" y="10" width="85" height="30" rx="5" fill="#0f2a1e" stroke="#10b981" stroke-width="1.5"/>
+        <text x="687" y="29" fill="#10b981" font-size="10" text-anchor="middle" font-family="system-ui">Server 1 ✓ 33%</text>
+        <rect x="645" y="31" width="85" height="30" rx="5" fill="#0f2a1e" stroke="#10b981" stroke-width="1.5"/>
+        <text x="687" y="50" fill="#10b981" font-size="10" text-anchor="middle" font-family="system-ui">Server 2 ✓ 33%</text>
+        <rect x="645" y="52" width="85" height="30" rx="5" fill="#0f2a1e" stroke="#10b981" stroke-width="1.5"/>
+        <text x="687" y="71" fill="#10b981" font-size="10" text-anchor="middle" font-family="system-ui">Server 3 ✓ 34%</text>
+        <text x="390" y="192" fill="#10b981" font-size="11" font-family="system-ui">Load spread evenly · any server can fail · add servers without downtime</text>
+      </svg>
+    </div>
+
+    <ul>
+      <li><strong>High Availability</strong> — when a server fails, the LB detects it via health checks and stops routing to it. Users see no downtime.</li>
+      <li><strong>Horizontal Scalability</strong> — add more servers to the pool without touching DNS, client code, or any public address.</li>
+      <li><strong>Performance</strong> — requests land on the least-loaded node, cutting tail latency spikes that would hit a single overloaded server.</li>
+    </ul>
+
+    <div class="callout info">
+      <strong>Real-World Scale</strong>
+      Google's frontend load balancers handle millions of requests per second globally. Netflix uses Zuul + Ribbon for service-to-service LB across thousands of microservice instances. Cloudflare uses BGP Anycast so a single IP routes to the nearest of 300+ PoPs.
+    </div>
+  </section>
+
+  <section id="concepts">
+    <h2><span class="num">3</span> Core Concepts</h2>
+
+    <div class="cards">
+      <div class="card">
+        <h4>Load Balancer</h4>
+        <p>Network device or software that sits between clients and servers, accepting all incoming connections and forwarding them to a backend pool.</p>
+        <div class="analogy">Analogy: Airport check-in kiosk routing passengers to available agents.</div>
+      </div>
+      <div class="card">
+        <h4>Backend Pool</h4>
+        <p>The group of servers (nodes) that actually process requests. The LB selects from this pool per-request based on its algorithm.</p>
+        <div class="analogy">Analogy: The check-in agents — add more agents to handle a flight surge.</div>
+      </div>
+      <div class="card">
+        <h4>Health Check</h4>
+        <p>Periodic probe (HTTP GET /health, TCP connect) the LB sends to each server. Consecutive failures mark a node "down" and remove it from rotation.</p>
+        <div class="analogy">Analogy: Supervisor walking by to confirm each agent is at their desk.</div>
+      </div>
+      <div class="card">
+        <h4>Sticky Sessions</h4>
+        <p>Routing the same client to the same backend across multiple requests — via cookie or IP hash. Required only when servers hold local session state.</p>
+        <div class="analogy">Analogy: Always returning to the same agent who already knows your booking.</div>
+      </div>
+      <div class="card">
+        <h4>L4 vs L7 Balancing</h4>
+        <p>Layer 4 routes by IP+port (fast, minimal work). Layer 7 reads HTTP headers, URL, cookies (smarter routing, TLS termination, higher CPU cost).</p>
+        <div class="analogy">Analogy: L4 = sort mail by zip code. L7 = read the letter and route by contents.</div>
+      </div>
+      <div class="card">
+        <h4>Virtual IP (VIP)</h4>
+        <p>Single stable IP exposed to clients. All backends can be swapped, scaled, or re-addressed without clients ever noticing.</p>
+        <div class="analogy">Analogy: Company's main phone number — whoever picks up changes, the number doesn't.</div>
+      </div>
+    </div>
+
+    <h3>Static vs Dynamic Algorithms</h3>
+    <table>
+      <thead>
+        <tr><th>Type</th><th>Algorithm</th><th>Best For</th><th>Drawback</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Static</td><td>Round Robin</td><td>Uniform, stateless servers</td><td>Ignores actual server load</td></tr>
+        <tr><td>Static</td><td>Weighted Round Robin</td><td>Mixed server capacities</td><td>Weights go stale; set manually</td></tr>
+        <tr><td>Static</td><td>IP Hash</td><td>Sticky sessions without cookies</td><td>Skewed if many clients share NAT IP</td></tr>
+        <tr><td>Static</td><td>Consistent Hash</td><td>Caches, sharded databases</td><td>More complex to implement</td></tr>
+        <tr><td>Dynamic</td><td>Least Connections</td><td>Variable-duration requests (APIs, files)</td><td>Slightly higher LB overhead</td></tr>
+        <tr><td>Dynamic</td><td>Least Response Time</td><td>Latency-critical services</td><td>Requires active latency monitoring</td></tr>
+        <tr><td>Dynamic</td><td>Resource Based</td><td>CPU/memory-heavy workloads</td><td>Needs agent installed on each server</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section id="how">
+    <h2><span class="num">4</span> How It Works</h2>
+    <p>Every request from a client follows this deterministic path through a load-balanced system:</p>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-content">
+          <h4>DNS Resolution → VIP</h4>
+          <p>Client resolves <code>api.example.com</code> and receives the VIP — the load balancer's IP, not any backend's address. All N backends are hidden behind this single address.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-content">
+          <h4>Connection Established at LB</h4>
+          <p>TCP handshake (or TLS handshake for HTTPS) terminates at the LB. For L7 LBs, TLS decryption happens here — backends receive plain HTTP, centralizing certificate management.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-content">
+          <h4>Algorithm Selects a Backend</h4>
+          <p>In microseconds, the LB consults its routing algorithm and the current health + load state of all servers to pick a target. See the simulator below to watch this happen live.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- SIMULATION -->
+    <div class="ssb" id="sim-lb">
+      <div class="ssb-title">▶ Try It: Load Balancing Algorithm Visualizer</div>
+      <div class="sim-toolbar">
+        <span class="sim-toolbar-label">Algorithm:</span>
+        <button class="sim-btn active" id="btn-rr" onclick="setAlgo('rr',this)">Round Robin</button>
+        <button class="sim-btn" onclick="setAlgo('wrr',this)">Weighted</button>
+        <button class="sim-btn" onclick="setAlgo('lc',this)">Least Connections</button>
+        <button class="sim-btn" onclick="setAlgo('iphash',this)">IP Hash</button>
+        <button class="sim-btn" style="margin-left:auto;border-color:#ef4444;color:#ef4444;" onclick="resetSim()">Reset</button>
+      </div>
+      <div class="sim-canvas-wrap">
+        <canvas id="lb-canvas" width="760" height="340"></canvas>
+      </div>
+      <div class="sim-controls">
+        <div class="sim-control-row">
+          <label>Request Rate <span id="rrate-val">3</span> req/s</label>
+          <input type="range" id="rrate" min="1" max="12" value="3" oninput="document.getElementById('rrate-val').textContent=this.value">
+        </div>
+        <div class="sim-control-row">
+          <label>Avg Connection Duration <span id="cdur-val">2</span>s</label>
+          <input type="range" id="cdur" min="1" max="6" value="2" oninput="document.getElementById('cdur-val').textContent=this.value">
+        </div>
+      </div>
+      <div class="sim-score-bar">
+        <div class="sim-stat">
+          <span class="sim-stat-label">Total Sent</span>
+          <span class="sim-stat-value green" id="stat-total">0</span>
+        </div>
+        <div class="sim-divider"></div>
+        <div class="sim-stat">
+          <span class="sim-stat-label">Active Conns</span>
+          <span class="sim-stat-value yellow" id="stat-active">0</span>
+        </div>
+        <div class="sim-divider"></div>
+        <div class="sim-stat">
+          <span class="sim-stat-label">Distribution (S1/S2/S3)</span>
+          <span class="sim-stat-value small" id="stat-dist" style="color:var(--text-muted);">—</span>
+        </div>
+        <div class="sim-divider"></div>
+        <div class="sim-stat">
+          <span class="sim-stat-label">Algorithm</span>
+          <span class="sim-stat-value small" id="stat-algo">Round Robin</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="steps" style="margin-top:16px;">
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-content">
+          <h4>Request Proxied to Backend</h4>
+          <p>LB forwards the request to the chosen server. For L7 it adds <code>X-Forwarded-For: &lt;client-ip&gt;</code> so the backend can still access the real client IP for logging and rate-limiting.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">5</div>
+        <div class="step-content">
+          <h4>Backend Responds</h4>
+          <p>Server processes the request and sends a response back through the LB (or directly to client in Direct Server Return mode, bypassing the LB on the return path for large responses).</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">6</div>
+        <div class="step-content">
+          <h4>Continuous Health Check Loop</h4>
+          <p>In parallel, the LB probes each backend (e.g. <code>GET /health</code> every 5s). Fail 3 in a row → server removed from pool. Pass 2 consecutive → server re-added. Users are never routed to a broken server.</p>
+        </div>
+      </div>
+    </div>
+
+    <h3>L4 vs L7 Packet Flow</h3>
+    <div class="arch-wrap">
+      <svg viewBox="0 0 740 170" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;">
+        <defs>
+          <marker id="ab" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#3b82f6"/></marker>
+          <marker id="ag2" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#10b981"/></marker>
+        </defs>
+        <!-- L4 side -->
+        <text x="8" y="16" fill="#60a5fa" font-size="12" font-family="system-ui" font-weight="700">L4 — TCP/IP Layer</text>
+        <rect x="8" y="26" width="65" height="28" rx="5" fill="#1a1d27" stroke="#6366f1" stroke-width="1.5"/>
+        <text x="40" y="44" fill="#818cf8" font-size="10" text-anchor="middle" font-family="system-ui">Client</text>
+        <line x1="73" y1="40" x2="115" y2="40" stroke="#3b82f6" stroke-width="1.5" marker-end="url(#ab)"/>
+        <rect x="115" y="20" width="88" height="40" rx="5" fill="#1e2a4a" stroke="#3b82f6" stroke-width="2"/>
+        <text x="159" y="37" fill="#60a5fa" font-size="11" text-anchor="middle" font-family="system-ui" font-weight="700">L4 LB</text>
+        <text x="159" y="51" fill="#60a5fa" font-size="9" text-anchor="middle" font-family="system-ui">IP + Port only</text>
+        <line x1="203" y1="32" x2="242" y2="22" stroke="#3b82f6" stroke-width="1.2" marker-end="url(#ab)"/>
+        <line x1="203" y1="40" x2="242" y2="40" stroke="#3b82f6" stroke-width="1.2" marker-end="url(#ab)"/>
+        <line x1="203" y1="48" x2="242" y2="58" stroke="#3b82f6" stroke-width="1.2" marker-end="url(#ab)"/>
+        <rect x="242" y="10" width="65" height="24" rx="4" fill="#1a1d27" stroke="#6366f1" stroke-width="1"/>
+        <text x="274" y="26" fill="#818cf8" font-size="9" text-anchor="middle" font-family="system-ui">Server 1</text>
+        <rect x="242" y="28" width="65" height="24" rx="4" fill="#1a1d27" stroke="#6366f1" stroke-width="1"/>
+        <text x="274" y="44" fill="#818cf8" font-size="9" text-anchor="middle" font-family="system-ui">Server 2</text>
+        <rect x="242" y="46" width="65" height="24" rx="4" fill="#1a1d27" stroke="#6366f1" stroke-width="1"/>
+        <text x="274" y="62" fill="#818cf8" font-size="9" text-anchor="middle" font-family="system-ui">Server 3</text>
+        <text x="8" y="90" fill="#8892a4" font-size="10" font-family="system-ui">✓ Ultra-fast (no HTTP parse)  ✓ Any TCP/UDP protocol  ✗ Cannot route by URL/header/cookie</text>
+
+        <!-- L7 side -->
+        <text x="390" y="16" fill="#10b981" font-size="12" font-family="system-ui" font-weight="700">L7 — HTTP/Application Layer</text>
+        <rect x="390" y="26" width="65" height="28" rx="5" fill="#1a1d27" stroke="#6366f1" stroke-width="1.5"/>
+        <text x="422" y="44" fill="#818cf8" font-size="10" text-anchor="middle" font-family="system-ui">Client</text>
+        <line x1="455" y1="40" x2="497" y2="40" stroke="#10b981" stroke-width="1.5" marker-end="url(#ag2)"/>
+        <rect x="497" y="16" width="96" height="48" rx="5" fill="#0f2a1e" stroke="#10b981" stroke-width="2"/>
+        <text x="545" y="35" fill="#10b981" font-size="11" text-anchor="middle" font-family="system-ui" font-weight="700">L7 LB</text>
+        <text x="545" y="49" fill="#10b981" font-size="8.5" text-anchor="middle" font-family="system-ui">URL · headers · cookies</text>
+        <text x="545" y="60" fill="#10b981" font-size="8.5" text-anchor="middle" font-family="system-ui">TLS termination</text>
+        <line x1="593" y1="28" x2="632" y2="18" stroke="#10b981" stroke-width="1.2" marker-end="url(#ag2)"/>
+        <line x1="593" y1="40" x2="632" y2="40" stroke="#10b981" stroke-width="1.2" marker-end="url(#ag2)"/>
+        <line x1="593" y1="52" x2="632" y2="62" stroke="#10b981" stroke-width="1.2" marker-end="url(#ag2)"/>
+        <rect x="632" y="6" width="95" height="24" rx="4" fill="#1a1d27" stroke="#10b981" stroke-width="1"/>
+        <text x="679" y="22" fill="#10b981" font-size="8.5" text-anchor="middle" font-family="system-ui">/api → API servers</text>
+        <rect x="632" y="28" width="95" height="24" rx="4" fill="#1a1d27" stroke="#10b981" stroke-width="1"/>
+        <text x="679" y="44" fill="#10b981" font-size="8.5" text-anchor="middle" font-family="system-ui">/static → CDN nodes</text>
+        <rect x="632" y="50" width="95" height="24" rx="4" fill="#1a1d27" stroke="#10b981" stroke-width="1"/>
+        <text x="679" y="66" fill="#10b981" font-size="8.5" text-anchor="middle" font-family="system-ui">/ws → WS servers</text>
+        <text x="390" y="90" fill="#8892a4" font-size="10" font-family="system-ui">✓ URL/header routing  ✓ TLS termination  ✓ Modify headers  ✗ Slower — full HTTP parse required</text>
+
+        <!-- Separator -->
+        <line x1="370" y1="10" x2="370" y2="100" stroke="#2e3147" stroke-width="1" stroke-dasharray="4,4"/>
+
+        <!-- HA note -->
+        <rect x="8" y="108" width="724" height="54" rx="6" fill="#1a1d27" stroke="#2e3147" stroke-width="1"/>
+        <text x="20" y="126" fill="#f59e0b" font-size="11" font-family="system-ui" font-weight="700">HA Pair (Active-Passive)</text>
+        <text x="20" y="142" fill="#8892a4" font-size="10" font-family="system-ui">Primary LB handles all traffic · Standby LB monitors via heartbeat · On failure, standby claims the VIP via VRRP in &lt;1s · No single point of failure</text>
+        <text x="20" y="156" fill="#8892a4" font-size="10" font-family="system-ui">Tools: keepalived, HAProxy+Pacemaker, AWS NLB (built-in HA), GCP Cloud LB (built-in HA)</text>
+      </svg>
+    </div>
+  </section>
+
+  <section id="examples">
+    <h2><span class="num">5</span> Examples</h2>
+
+    <h3>Nginx — Round Robin (default)</h3>
+    <pre><code># nginx.conf — upstream block defines the backend pool
+upstream api_backend {
+    server 10.0.0.1:8080;   # weight defaults to 1
+    server 10.0.0.2:8080;
+    server 10.0.0.3:8080;
+}
+
+server {
+    listen 80;
+    server_name api.example.com;
+
+    location / {
+        proxy_pass         http://api_backend;
+        proxy_set_header   X-Forwarded-For  $proxy_add_x_forwarded_for;
+        proxy_set_header   Host             $host;
+    }
+}</code></pre>
+
+    <h3>Nginx — Weighted Least Connections</h3>
+    <pre><code># Weighted + least_conn: high-capacity server gets 3x share,
+# but still routes to least-busy node within its weight window
+upstream api_backend {
+    least_conn;
+    server 10.0.0.1:8080 weight=3;   # 3x capacity
+    server 10.0.0.2:8080 weight=1;
+    server 10.0.0.3:8080 backup;     # only used when others are down
+}
+
+upstream api_backend {
+    ip_hash;                          # sticky sessions via IP hash
+    server 10.0.0.1:8080;
+    server 10.0.0.2:8080;
+}</code></pre>
+
+    <h3>HAProxy — Health Checks + Stats</h3>
+    <pre><code># haproxy.cfg
+frontend http_front
+    bind *:80
+    default_backend http_back
+
+backend http_back
+    balance     roundrobin
+    option      httpchk GET /health HTTP/1.1\r\nHost:\ localhost
+    http-check  expect status 200
+    server web1 10.0.0.1:8080 check inter 5s rise 2 fall 3
+    server web2 10.0.0.2:8080 check inter 5s rise 2 fall 3
+    server web3 10.0.0.3:8080 check inter 5s rise 2 fall 3
+
+# Stats dashboard at :8404/stats
+listen stats
+    bind *:8404
+    stats enable
+    stats uri /stats
+    stats refresh 5s</code></pre>
+
+    <h3>AWS ALB — Path-Based Routing (Terraform)</h3>
+    <pre><code># Two listener rules route /api/* and /static/* to different target groups
+resource "aws_lb_listener_rule" "api" {
+  listener_arn = aws_lb_listener.https.arn
+  priority     = 100
+
+  condition {
+    path_pattern { values = ["/api/*"] }
+  }
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.api_servers.arn
+  }
+}
+
+resource "aws_lb_listener_rule" "static" {
+  listener_arn = aws_lb_listener.https.arn
+  priority     = 200
+
+  condition {
+    path_pattern { values = ["/static/*"] }
+  }
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.cdn_servers.arn
+  }
+}</code></pre>
+
+    <h3>Consistent Hashing Ring (Python)</h3>
+    <pre><code># consistent_hash.py
+# Used for cache/shard LB: adding a server only remaps ~1/N keys
+import hashlib
+
+class HashRing:
+    def __init__(self, nodes, replicas=150):
+        self.ring = {}
+        for node in nodes:
+            for i in range(replicas):
+                h = int(hashlib.md5(f"{node}:{i}".encode()).hexdigest(), 16)
+                self.ring[h] = node
+        self.keys = sorted(self.ring)
+
+    def get(self, key):
+        h = int(hashlib.md5(key.encode()).hexdigest(), 16)
+        for k in self.keys:
+            if h <= k:
+                return self.ring[k]
+        return self.ring[self.keys[0]]  # wrap around
+
+ring = HashRing(["cache-1", "cache-2", "cache-3"])
+print(ring.get("user-session-42"))  # deterministic, stable across requests</code></pre>
+  </section>
+
+  <section id="mistakes">
+    <h2><span class="num">6</span> Common Mistakes</h2>
+
+    <div class="callout err">
+      <strong>Mistake: Stateful Backends + Sticky Sessions Without Fallback</strong>
+      If the pinned server dies, all its sessions are gone — every affected user gets logged out or loses cart state. Fix: store session in Redis/DB so any server can handle any request. Sticky sessions become optional, not load-bearing.
+    </div>
+
+    <div class="callout err">
+      <strong>Mistake: Health Checks Too Infrequent or Too Shallow</strong>
+      Checking every 30s means 30s of errors before a dead server is removed. And <code>GET /</code> returning 200 doesn't mean the database connection is alive. Fix: 5–10s intervals, check=2-fail=3 thresholds, and a <code>/health</code> endpoint that pings the DB.
+    </div>
+
+    <div class="callout err">
+      <strong>Mistake: Single Load Balancer (SPOF)</strong>
+      The LB itself is now the single point of failure. Fix: deploy an Active-Passive pair with keepalived/VRRP. The VIP floats to the standby node in under a second when the primary fails.
+    </div>
+
+    <div class="callout warn">
+      <strong>Mistake: Round Robin for WebSockets / Long-Polling</strong>
+      Round Robin distributes new connections evenly but long-lived connections pile up on early servers. Server 1 opened at t=0 still has 1000 connections when Server 3 joins. Fix: use Least Connections for any workload where connection durations vary.
+    </div>
+
+    <div class="callout warn">
+      <strong>Mistake: Trusting X-Forwarded-For Without Allowlisting</strong>
+      A client can forge <code>X-Forwarded-For: 1.2.3.4</code> to spoof any IP for rate-limit bypass or geo-bypass. Fix: only trust the <code>X-Forwarded-For</code> header when the request comes from known LB IPs. Everything else: read from <code>REMOTE_ADDR</code>.
+    </div>
+
+    <div class="callout warn">
+      <strong>Mistake: Weighted RR With Stale Weights</strong>
+      You set weights at deploy time based on instance type. Six months later half the fleet was upgraded but weights weren't updated. Fix: automate weight derivation from vCPU count, or switch to Least Connections which self-balances dynamically.
+    </div>
+  </section>
+
+  <section id="cheatsheet">
+    <h2><span class="num">7</span> Cheat Sheet</h2>
+    <div class="cheatsheet">
+      <div class="cheatsheet-header">Load Balancing — Quick Reference</div>
+      <div class="cheatsheet-body">
+        <div class="cheatsheet-row">
+          <span class="cheatsheet-key">Round Robin</span>
+          <span class="cheatsheet-val">1→2→3→1→… Fixed rotation, ignores load. Best: uniform stateless servers.</span>
+        </div>
+        <div class="cheatsheet-row">
+          <span class="cheatsheet-key">Weighted Round Robin</span>
+          <span class="cheatsheet-val">Server A w=3 gets 3× requests vs w=1. Best: mixed instance types.</span>
+        </div>
+        <div class="cheatsheet-row">
+          <span class="cheatsheet-key">Least Connections</span>
+          <span class="cheatsheet-val">New request → server with fewest open connections. Best: variable-length requests.</span>
+        </div>
+        <div class="cheatsheet-row">
+          <span class="cheatsheet-key">Least Response Time</span>
+          <span class="cheatsheet-val">Routes to lowest (active_conns × avg_latency). Best: latency-critical APIs.</span>
+        </div>
+        <div class="cheatsheet-row">
+          <span class="cheatsheet-key">IP Hash</span>
+          <span class="cheatsheet-val">hash(client_ip) % N. Same IP always hits same server. Best: sticky sessions without cookies.</span>
+        </div>
+        <div class="cheatsheet-row">
+          <span class="cheatsheet-key">Consistent Hash</span>
+          <span class="cheatsheet-val">Ring topology. Add/remove server remaps only ~1/N keys. Best: distributed caches, sharded DBs.</span>
+        </div>
+        <div class="cheatsheet-row">
+          <span class="cheatsheet-key">L4 (TCP) LB</span>
+          <span class="cheatsheet-val">Routes by IP+port. Fast, no HTTP parsing. Tools: AWS NLB, HAProxy (tcp mode), LVS.</span>
+        </div>
+        <div class="cheatsheet-row">
+          <span class="cheatsheet-key">L7 (HTTP) LB</span>
+          <span class="cheatsheet-val">Reads URL, headers, cookies. TLS termination. Tools: AWS ALB, Nginx, HAProxy (http mode), Envoy.</span>
+        </div>
+        <div class="cheatsheet-row">
+          <span class="cheatsheet-key">Health check config</span>
+          <span class="cheatsheet-val">Interval 5–10s · fail threshold 2–3 · rise threshold 2 · endpoint: GET /health checks DB ping.</span>
+        </div>
+        <div class="cheatsheet-row">
+          <span class="cheatsheet-key">TLS Termination</span>
+          <span class="cheatsheet-val">LB decrypts HTTPS → plain HTTP to backends. One cert at LB, not on every server.</span>
+        </div>
+        <div class="cheatsheet-row">
+          <span class="cheatsheet-key">X-Forwarded-For</span>
+          <span class="cheatsheet-val">LB adds original client IP. Read in app for logging/rate-limiting. Trust only from known LB IPs.</span>
+        </div>
+        <div class="cheatsheet-row">
+          <span class="cheatsheet-key">Nginx algorithms</span>
+          <span class="cheatsheet-val"><code>round_robin</code> (default) · <code>least_conn</code> · <code>ip_hash</code> · <code>hash $uri</code></span>
+        </div>
+        <div class="cheatsheet-row">
+          <span class="cheatsheet-key">HAProxy balance</span>
+          <span class="cheatsheet-val"><code>roundrobin</code> · <code>leastconn</code> · <code>source</code> · <code>uri</code> · <code>hdr(name)</code> · <code>random</code></span>
+        </div>
+        <div class="cheatsheet-row">
+          <span class="cheatsheet-key">AWS ALB</span>
+          <span class="cheatsheet-val">L7. Path/host/header routing. Auto-scaling target groups. Free TLS via ACM. HTTP/HTTPS/gRPC.</span>
+        </div>
+        <div class="cheatsheet-row">
+          <span class="cheatsheet-key">AWS NLB</span>
+          <span class="cheatsheet-val">L4. Static IPs, ultra-low latency, TCP/UDP/TLS. Use when L7 overhead matters or need fixed IP.</span>
+        </div>
+        <div class="cheatsheet-row">
+          <span class="cheatsheet-key">VRRP / keepalived</span>
+          <span class="cheatsheet-val">HA protocol for LB pairs. Floating VIP moves to standby in &lt;1s if primary fails. Eliminates SPOF.</span>
+        </div>
+        <div class="cheatsheet-row">
+          <span class="cheatsheet-key">DSR (Direct Server Return)</span>
+          <span class="cheatsheet-val">Backend responds directly to client, bypassing LB on return path. Halves LB bandwidth for large responses.</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="next">
+    <h2><span class="num">8</span> What to Learn Next</h2>
+    <div class="next-grid">
+      <div class="next-card">
+        <div class="icon">🔀</div>
+        <h4>Service Mesh (Envoy/Istio)</h4>
+        <p>LB moves into the sidecar — per-request telemetry, circuit breaking, mTLS between microservices, no code changes.</p>
+      </div>
+      <div class="next-card">
+        <div class="icon">🌐</div>
+        <h4>DNS Load Balancing</h4>
+        <p>Multiple A-records + low TTL. Geographic routing via Route 53 Latency/Geolocation policies. Coarser but infinitely scalable.</p>
+      </div>
+      <div class="next-card">
+        <div class="icon">📡</div>
+        <h4>CDN & BGP Anycast</h4>
+        <p>Same IP announced from 300+ PoPs. Client's router picks the nearest one. Load balancing at the routing protocol layer.</p>
+      </div>
+      <div class="next-card">
+        <div class="icon">⚡</div>
+        <h4>Rate Limiting & Circuit Breakers</h4>
+        <p>Protect backends from overload. Token bucket + sliding window rate limits. Hystrix/Resilience4j circuit breakers stop cascade failures.</p>
+      </div>
+      <div class="next-card">
+        <div class="icon">🗄️</div>
+        <h4>Database Load Balancing</h4>
+        <p>Read replicas behind PgBouncer/ProxySQL. Write goes to primary, reads to N replicas. Scales read-heavy workloads linearly.</p>
+      </div>
+      <div class="next-card">
+        <div class="icon">☸️</div>
+        <h4>Kubernetes Ingress</h4>
+        <p>K8s Services (ClusterIP, NodePort, LoadBalancer) + Ingress controllers (nginx, Traefik, Envoy Gateway) do LB natively in cloud environments.</p>
+      </div>
+    </div>
+    <div class="callout tip">
+      <strong>Practice Exercise</strong>
+      Spin up 3 Node.js servers on ports 3001–3003, each returning <code>{"server": PORT}</code>. Write an Nginx <code>upstream</code> block pointing at all three. Use <code>wrk -t4 -c100 -d30s http://localhost/</code> to load test and watch the Nginx access log to verify distribution. Then switch to <code>least_conn</code> and repeat — observe how long-running requests shift the distribution.
+    </div>
+  </section>
+
+  <div class="sources">
+    <h2>Sources Used</h2>
+    <ul>
+      <li><a href="https://www.daydreamsoft.com/blog/load-balancing-algorithms-explained-with-real-world-scenarios">Load Balancing Algorithms Explained — DaydreamSoft</a></li>
+      <li><a href="https://www.geeksforgeeks.org/system-design/load-balancing-algorithms/">Load Balancing Algorithms — GeeksforGeeks</a></li>
+      <li><a href="https://www.cloudflare.com/learning/performance/types-of-load-balancing-algorithms/">Types of Load Balancing Algorithms — Cloudflare</a></li>
+      <li><a href="https://oneuptime.com/blog/post/2026-02-20-load-balancing-algorithms/view">Load Balancing Algorithms and Strategies — OneUptime (Feb 2026)</a></li>
+      <li><a href="https://gcore.com/learning/load-balancing-algorithms">Load Balancing Algorithms — Gcore</a></li>
+      <li><a href="https://singh-sanjay.com/2026/03/02/load-balancing-algorithms.html">Round Robin vs Least Connections — Sanjay Singh (Mar 2026)</a></li>
+      <li><a href="https://kemptechnologies.com/load-balancer/load-balancing-algorithms-techniques">Load Balancing Algorithms Techniques — Kemp</a></li>
+    </ul>
+  </div>
+</main>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  const canvas = document.getElementById('lb-canvas');
+  const ctx = canvas.getContext('2d');
+
+  // Layout constants (canvas 760x340)
+  const CX = 70, CY = 170;          // client center
+  const LX = 310, LY = 170;         // LB center
+  const SX = 580;                    // servers x
+  const SY = [80, 170, 262];        // servers y
+  const S_COLORS = ['#6366f1', '#10b981', '#f59e0b'];
+  const S_NAMES  = ['Server 1', 'Server 2', 'Server 3'];
+  const S_WEIGHTS = [3, 2, 1];
+
+  let algo = 'rr';
+  let rrIdx = 0, wrrIdx = 0;
+  let totalReqs = 0;
+  let reqCounts = [0, 0, 0];
+  let packets = [];
+  let lastSpawn = 0;
+  let serverConns = [0, 0, 0];
+
+  function getNextServer() {
+    switch (algo) {
+      case 'rr':
+        return (rrIdx++) % 3;
+      case 'wrr': {
+        const total = S_WEIGHTS.reduce((a, b) => a + b, 0);
+        let r = (wrrIdx++) % total;
+        for (let i = 0; i < 3; i++) { r -= S_WEIGHTS[i]; if (r < 0) return i; }
+        return 0;
+      }
+      case 'lc':
+        return serverConns[0] <= serverConns[1]
+          ? (serverConns[0] <= serverConns[2] ? 0 : 2)
+          : (serverConns[1] <= serverConns[2] ? 1 : 2);
+      case 'iphash':
+        // Simulate 5 distinct "IPs"
+        return (Math.floor(Math.random() * 5)) % 3;
+    }
+    return 0;
+  }
+
+  function spawnPacket() {
+    const si = getNextServer();
+    serverConns[si]++;
+    reqCounts[si]++;
+    totalReqs++;
+    const cdur = parseFloat(document.getElementById('cdur').value) * 1000;
+    setTimeout(() => { if (serverConns[si] > 0) serverConns[si]--; }, cdur * (0.7 + Math.random() * 0.6));
+    packets.push({ si, phase: 0, t: 0, color: S_COLORS[si] });
+  }
+
+  function ease(t) { return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t; }
+
+  function rr(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.arcTo(x + w, y, x + w, y + r, r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+    ctx.lineTo(x + r, y + h);
+    ctx.arcTo(x, y + h, x, y + h - r, r);
+    ctx.lineTo(x, y + r);
+    ctx.arcTo(x, y, x + r, y, r);
+    ctx.closePath();
+  }
+
+  function drawFrame(ts) {
+    ctx.clearRect(0, 0, 760, 340);
+
+    // Background grid
+    ctx.save();
+    ctx.strokeStyle = '#1a1d27';
+    ctx.lineWidth = 1;
+    for (let x = 0; x < 760; x += 40) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, 340); ctx.stroke(); }
+    for (let y = 0; y < 340; y += 40) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(760, y); ctx.stroke(); }
+    ctx.restore();
+
+    // Static guide lines (Client→LB, LB→each Server)
+    ctx.save();
+    ctx.setLineDash([6, 5]);
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = '#2e3147';
+    ctx.beginPath(); ctx.moveTo(CX + 44, CY); ctx.lineTo(LX - 54, LY); ctx.stroke();
+    for (let i = 0; i < 3; i++) {
+      ctx.strokeStyle = S_COLORS[i] + '33';
+      ctx.beginPath(); ctx.moveTo(LX + 54, LY); ctx.lineTo(SX - 58, SY[i]); ctx.stroke();
+    }
+    ctx.setLineDash([]);
+    ctx.restore();
+
+    // ---- CLIENT BOX ----
+    ctx.save();
+    rr(ctx, CX - 44, CY - 26, 88, 52, 8);
+    ctx.fillStyle = '#1a1d27';
+    ctx.fill();
+    ctx.strokeStyle = '#6366f1';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.fillStyle = '#818cf8';
+    ctx.font = 'bold 13px system-ui';
+    ctx.textAlign = 'center';
+    ctx.fillText('Clients', CX, CY - 4);
+    ctx.font = '10px system-ui';
+    ctx.fillStyle = '#8892a4';
+    ctx.fillText('requests →', CX, CY + 12);
+    ctx.restore();
+
+    // ---- LB BOX ----
+    ctx.save();
+    rr(ctx, LX - 54, LY - 32, 108, 64, 8);
+    ctx.fillStyle = '#0f2a1e';
+    ctx.fill();
+    ctx.strokeStyle = '#10b981';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.fillStyle = '#10b981';
+    ctx.font = 'bold 14px system-ui';
+    ctx.textAlign = 'center';
+    ctx.fillText('Load', LX, LY - 8);
+    ctx.fillText('Balancer', LX, LY + 10);
+    // Algorithm label
+    const algoLabels = { rr: 'Round Robin', wrr: 'Weighted', lc: 'Least Conn', iphash: 'IP Hash' };
+    ctx.font = '9px system-ui';
+    ctx.fillStyle = '#10b98199';
+    ctx.fillText(algoLabels[algo], LX, LY + 26);
+    ctx.restore();
+
+    // ---- SERVER BOXES ----
+    for (let i = 0; i < 3; i++) {
+      const load = Math.min(serverConns[i] / 8, 1);
+      const lc = load < 0.5 ? '#10b981' : load < 0.8 ? '#f59e0b' : '#ef4444';
+      ctx.save();
+      rr(ctx, SX - 58, SY[i] - 34, 116, 68, 8);
+      ctx.fillStyle = '#1a1d27';
+      ctx.fill();
+      ctx.strokeStyle = S_COLORS[i];
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.fillStyle = S_COLORS[i];
+      ctx.font = 'bold 13px system-ui';
+      ctx.textAlign = 'center';
+      ctx.fillText(S_NAMES[i], SX, SY[i] - 12);
+      // Connections
+      ctx.font = '10px system-ui';
+      ctx.fillStyle = '#8892a4';
+      ctx.fillText(`${serverConns[i]} conn`, SX, SY[i] + 4);
+      // Total label
+      ctx.fillStyle = '#8892a4';
+      ctx.font = '9px system-ui';
+      ctx.fillText(`total: ${reqCounts[i]}`, SX, SY[i] + 18);
+      // Load bar
+      const bx = SX - 38, by = SY[i] + 24, bw = 76;
+      rr(ctx, bx, by, bw, 6, 3);
+      ctx.fillStyle = '#2e3147';
+      ctx.fill();
+      if (load > 0) {
+        rr(ctx, bx, by, Math.max(bw * load, 6), 6, 3);
+        ctx.fillStyle = lc;
+        ctx.fill();
+      }
+      // Weight badge for WRR
+      if (algo === 'wrr') {
+        ctx.fillStyle = '#f59e0b';
+        ctx.font = 'bold 9px system-ui';
+        ctx.textAlign = 'right';
+        ctx.fillText(`w=${S_WEIGHTS[i]}`, SX + 55, SY[i] - 36);
+      }
+      ctx.restore();
+    }
+
+    // ---- PACKETS ----
+    const SPEED = 0.022;
+    for (let i = packets.length - 1; i >= 0; i--) {
+      const p = packets[i];
+      p.t = Math.min(1, p.t + SPEED);
+      let px, py;
+      if (p.phase === 0) {
+        px = CX + 44 + (LX - 54 - CX - 44) * ease(p.t);
+        py = CY + (LY - CY) * ease(p.t);
+      } else {
+        px = LX + 54 + (SX - 58 - LX - 54) * ease(p.t);
+        py = LY  + (SY[p.si] - LY)  * ease(p.t);
+      }
+      if (p.t >= 1) {
+        if (p.phase === 0) { p.phase = 1; p.t = 0; }
+        else { packets.splice(i, 1); continue; }
+      }
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(px, py, 7, 0, Math.PI * 2);
+      ctx.fillStyle = p.color;
+      ctx.shadowColor = p.color;
+      ctx.shadowBlur = 16;
+      ctx.fill();
+      ctx.restore();
+    }
+
+    // ---- SPAWN LOGIC ----
+    const rrate = parseFloat(document.getElementById('rrate').value);
+    if (ts - lastSpawn > 1000 / rrate) {
+      spawnPacket();
+      lastSpawn = ts;
+    }
+
+    // ---- UPDATE UI STATS ----
+    document.getElementById('stat-total').textContent = totalReqs;
+    document.getElementById('stat-active').textContent = serverConns.reduce((a, b) => a + b, 0);
+    if (totalReqs > 0) {
+      const d = reqCounts.map((c, i) => `S${i+1}:${Math.round(c / totalReqs * 100)}%`).join('  ');
+      document.getElementById('stat-dist').textContent = d;
+    }
+
+    requestAnimationFrame(drawFrame);
+  }
+
+  window.setAlgo = function (a, btn) {
+    algo = a;
+    rrIdx = 0; wrrIdx = 0;
+    document.querySelectorAll('.sim-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const names = { rr: 'Round Robin', wrr: 'Weighted RR', lc: 'Least Connections', iphash: 'IP Hash' };
+    document.getElementById('stat-algo').textContent = names[a];
+  };
+
+  window.resetSim = function () {
+    packets = [];
+    totalReqs = 0;
+    reqCounts = [0, 0, 0];
+    serverConns = [0, 0, 0];
+    rrIdx = 0; wrrIdx = 0;
+  };
+
+  requestAnimationFrame(drawFrame);
+})();
+</script>
+</body>
+</html>
