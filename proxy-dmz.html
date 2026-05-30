@@ -14,7 +14,8 @@
       --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       --mono: "Fira Code", "Cascadia Code", Consolas, monospace;
     }
-    body { font-family: var(--font); background: var(--bg); color: var(--text); line-height: 1.7; display: flex; min-height: 100vh; }
+    body { font-family: var(--font); background: var(--bg); color: var(--text); line-height: 1.7; display: flex; flex-direction: column; min-height: 100vh; }
+    .layout { display: flex; flex: 1; }
 
     /* NAV */
     nav { width: 230px; min-width: 230px; background: var(--surface); border-right: 1px solid var(--border); padding: 28px 16px; position: sticky; top: 0; height: 100vh; overflow-y: auto; }
@@ -175,6 +176,7 @@
   </a>
 </div>
 
+<div class="layout">
 <nav>
   <a class="logo" href="index.html">
     <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
@@ -634,6 +636,7 @@ resource <span class="str">"aws_security_group"</span> <span class="str">"intern
     </ul>
   </div>
 </main>
+</div>
 
 <script>
 (function() {
