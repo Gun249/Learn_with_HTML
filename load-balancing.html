@@ -505,7 +505,7 @@ upstream api_backend {
     server 10.0.0.3:8080 backup;     # only used when others are down
 }
 
-upstream api_backend {
+upstream api_backend_sticky {
     ip_hash;                          # sticky sessions via IP hash
     server 10.0.0.1:8080;
     server 10.0.0.2:8080;
@@ -768,7 +768,7 @@ print(ring.get("user-session-42"))  # deterministic, stable across requests</cod
   const S_WEIGHTS = [3, 2, 1];
 
   let algo = 'rr';
-  let rrIdx = 0, wrrIdx = 0;
+  let rrIdx = 0, wrrIdx = 0, ipIdx = 0;
   let totalReqs = 0;
   let reqCounts = [0, 0, 0];
   let packets = [];
@@ -790,8 +790,8 @@ print(ring.get("user-session-42"))  # deterministic, stable across requests</cod
           ? (serverConns[0] <= serverConns[2] ? 0 : 2)
           : (serverConns[1] <= serverConns[2] ? 1 : 2);
       case 'iphash':
-        // Simulate 5 distinct "IPs"
-        return (Math.floor(Math.random() * 5)) % 3;
+        // 6 fixed client IPs cycling deterministically — same clientId always maps to same server
+        return (ipIdx++) % 6 % 3;
     }
     return 0;
   }
@@ -973,7 +973,7 @@ print(ring.get("user-session-42"))  # deterministic, stable across requests</cod
 
   window.setAlgo = function (a, btn) {
     algo = a;
-    rrIdx = 0; wrrIdx = 0;
+    rrIdx = 0; wrrIdx = 0; ipIdx = 0;
     document.querySelectorAll('.sim-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     const names = { rr: 'Round Robin', wrr: 'Weighted RR', lc: 'Least Connections', iphash: 'IP Hash' };
@@ -985,7 +985,7 @@ print(ring.get("user-session-42"))  # deterministic, stable across requests</cod
     totalReqs = 0;
     reqCounts = [0, 0, 0];
     serverConns = [0, 0, 0];
-    rrIdx = 0; wrrIdx = 0;
+    rrIdx = 0; wrrIdx = 0; ipIdx = 0;
   };
 
   requestAnimationFrame(drawFrame);
