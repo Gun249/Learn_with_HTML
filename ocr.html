@@ -1,0 +1,902 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Learn: OCR — Optical Character Recognition</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0f1117; --surface: #1a1d27; --surface2: #252836; --border: #2e3147;
+      --text: #e2e8f0; --text-muted: #8892a4; --accent: #6366f1; --accent2: #818cf8;
+      --green: #10b981; --yellow: #f59e0b; --red: #ef4444; --blue: #3b82f6;
+      --code-bg: #0d0f17; --radius: 8px;
+      --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --mono: "Fira Code", "Cascadia Code", Consolas, monospace;
+    }
+    body { font-family: var(--font); background: var(--bg); color: var(--text); line-height: 1.7; display: flex; min-height: 100vh; }
+
+    /* NAV */
+    nav { width: 230px; min-width: 230px; background: var(--surface); border-right: 1px solid var(--border); padding: 28px 16px; position: sticky; top: 0; height: 100vh; overflow-y: auto; }
+    nav .logo { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.12em; color: var(--accent); margin-bottom: 20px; display: block; }
+    nav h2 { font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted); margin-bottom: 8px; margin-top: 18px; }
+    nav ol { list-style: none; counter-reset: toc; }
+    nav ol li { counter-increment: toc; }
+    nav ol li a { display: block; padding: 5px 8px; color: var(--text-muted); text-decoration: none; font-size: 12.5px; border-radius: 4px; transition: all 0.15s; line-height: 1.4; }
+    nav ol li a::before { content: counter(toc) ". "; color: var(--accent2); font-weight: 700; font-size: 11px; }
+    nav ol li a:hover { color: var(--text); background: var(--surface2); }
+    nav .sim-links { list-style: none; padding: 0; }
+    nav .sim-links li a { display: block; padding: 4px 8px; color: var(--text-muted); text-decoration: none; font-size: 11.5px; border-radius: 4px; transition: all 0.15s; }
+    nav .sim-links li a::before { content: "▶ "; color: var(--green); font-size: 9px; }
+    nav .sim-links li a:hover { color: var(--green); background: var(--surface2); }
+
+    /* MAIN */
+    main { flex: 1; max-width: 940px; padding: 52px 60px; overflow-x: hidden; }
+
+    /* HEADER */
+    header { margin-bottom: 52px; border-bottom: 1px solid var(--border); padding-bottom: 36px; }
+    header .tag { display: inline-block; background: var(--accent); color: white; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; padding: 3px 12px; border-radius: 20px; margin-bottom: 14px; }
+    header h1 { font-size: 44px; font-weight: 900; line-height: 1.15; margin-bottom: 6px; background: linear-gradient(135deg, #e2e8f0 0%, #818cf8 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    header .subtitle { font-size: 20px; color: var(--text-muted); margin-bottom: 10px; }
+    header .meta { font-size: 12px; color: var(--text-muted); margin-bottom: 18px; }
+    header .meta span { margin-right: 16px; }
+    header .essence { padding: 18px 22px; background: var(--surface); border-left: 3px solid var(--accent); border-radius: 0 var(--radius) var(--radius) 0; font-size: 17px; font-style: italic; color: var(--accent2); line-height: 1.5; }
+
+    /* SECTIONS */
+    section { margin-bottom: 60px; }
+    section h2 { font-size: 26px; font-weight: 800; margin-bottom: 22px; padding-bottom: 12px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 12px; }
+    section h2 .num { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; background: var(--accent); color: white; font-size: 13px; font-weight: 800; border-radius: 50%; flex-shrink: 0; }
+    section h3 { font-size: 16px; font-weight: 700; margin: 28px 0 10px; color: var(--accent2); }
+    section p { margin-bottom: 14px; }
+    section ul, section ol { padding-left: 22px; margin-bottom: 14px; }
+    section li { margin-bottom: 7px; }
+    strong { color: var(--text); }
+
+    /* DIAGRAM */
+    .diagram-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; margin: 24px 0; overflow-x: auto; text-align: center; }
+    .diagram-wrap figcaption { font-size: 12px; color: var(--text-muted); margin-top: 12px; }
+
+    /* CODE */
+    pre { background: var(--code-bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 22px; overflow-x: auto; margin: 16px 0; font-family: var(--mono); font-size: 13px; line-height: 1.65; }
+    code { font-family: var(--mono); font-size: 13px; }
+    :not(pre) > code { background: var(--surface2); padding: 2px 6px; border-radius: 4px; color: var(--accent2); font-size: 12.5px; }
+    .kw { color: #c678dd; } .fn { color: #61afef; } .str { color: #98c379; } .cm { color: #5c6370; font-style: italic; } .num-lit { color: #d19a66; } .var { color: #e06c75; }
+
+    /* TABLES */
+    table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 13.5px; }
+    th { background: var(--surface2); padding: 10px 14px; text-align: left; font-weight: 700; border: 1px solid var(--border); color: var(--accent2); font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; }
+    td { padding: 10px 14px; border: 1px solid var(--border); vertical-align: top; }
+    tr:nth-child(even) td { background: var(--surface); }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 700; }
+    .badge-green { background: #0f2a1e; color: var(--green); border: 1px solid var(--green); }
+    .badge-yellow { background: #2a2010; color: var(--yellow); border: 1px solid var(--yellow); }
+    .badge-red { background: #2a1010; color: var(--red); border: 1px solid var(--red); }
+    .badge-blue { background: #1e2a4a; color: var(--blue); border: 1px solid var(--blue); }
+
+    /* CALLOUTS */
+    .callout { padding: 16px 20px; border-radius: var(--radius); margin: 16px 0; border-left: 4px solid; }
+    .callout.info { background: #1e2a4a; border-color: var(--blue); }
+    .callout.warn { background: #2a2010; border-color: var(--yellow); }
+    .callout.tip  { background: #0f2a1e; border-color: var(--green); }
+    .callout.err  { background: #2a1010; border-color: var(--red); }
+    .callout .label { display: inline-block; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 6px; padding: 2px 8px; border-radius: 10px; }
+    .callout.info .label { background: var(--blue); color: white; }
+    .callout.warn .label { background: var(--yellow); color: #111; }
+    .callout.tip .label  { background: var(--green); color: #111; }
+    .callout.err .label  { background: var(--red); color: white; }
+
+    /* CONCEPT CARDS */
+    .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; margin: 20px 0; }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px 20px; transition: border-color 0.2s; }
+    .card:hover { border-color: var(--accent); }
+    .card h4 { font-size: 14.5px; font-weight: 700; margin-bottom: 8px; color: var(--accent2); }
+    .card p { font-size: 13px; color: var(--text-muted); margin: 0 0 8px; line-height: 1.5; }
+    .card .analogy { font-size: 12px; color: var(--green); font-style: italic; }
+
+    /* PIPELINE STEPS */
+    .steps { counter-reset: step; display: flex; flex-direction: column; gap: 0; }
+    .step { display: flex; flex-direction: column; padding: 20px 0; border-bottom: 1px solid var(--border); }
+    .step:last-child { border-bottom: none; }
+    .step-header { display: flex; gap: 20px; }
+    .step-num { display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; min-width: 36px; background: var(--surface2); border: 2px solid var(--accent); border-radius: 50%; font-weight: 800; font-size: 14px; color: var(--accent2); }
+    .step-content h4 { font-size: 15px; font-weight: 700; margin-bottom: 6px; color: var(--text); }
+    .step-content p { font-size: 13.5px; color: var(--text-muted); margin: 0; }
+
+    /* INLINE SIM BOX */
+    .ssb { margin-left: 56px; margin-top: 14px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; font-size: 13px; }
+    .ssb-title { background: var(--surface2); padding: 8px 14px; border-bottom: 1px solid var(--border); font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.09em; color: var(--green); display: flex; align-items: center; gap: 8px; }
+    .ssb-canvases { display: flex; border-bottom: 1px solid var(--border); }
+    .ssb-panel { flex: 1; padding: 12px; border-right: 1px solid var(--border); }
+    .ssb-panel:last-child { border-right: none; }
+    .ssb-panel-label { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); margin-bottom: 8px; }
+    .ssb-canvas { width: 100%; display: block; border-radius: 4px; background: #111; image-rendering: pixelated; }
+    .ssb-controls { padding: 10px 14px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px 20px; border-bottom: 1px solid var(--border); }
+    .ssb-ctrl { display: flex; flex-direction: column; gap: 4px; }
+    .ssb-ctrl label { font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; display: flex; justify-content: space-between; }
+    .ssb-ctrl label em { color: var(--accent2); font-style: normal; font-family: var(--mono); }
+    input[type=range] { -webkit-appearance: none; width: 100%; height: 4px; border-radius: 2px; background: var(--border); outline: none; cursor: pointer; }
+    input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%; background: var(--accent); cursor: pointer; border: 2px solid var(--bg); }
+    .ssb-status { padding: 8px 14px; display: flex; align-items: center; gap: 10px; font-size: 11.5px; color: var(--text-muted); }
+    .ssb-track { flex: 1; height: 5px; background: var(--border); border-radius: 3px; overflow: hidden; }
+    .ssb-fill { height: 100%; border-radius: 3px; transition: width 0.2s, background 0.2s; }
+    .ssb-btns { display: flex; gap: 6px; padding: 10px 14px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+    .ssb-btn { background: var(--surface2); border: 1px solid var(--border); color: var(--text-muted); padding: 5px 12px; border-radius: 5px; font-size: 11px; font-weight: 600; cursor: pointer; font-family: var(--font); transition: all 0.15s; }
+    .ssb-btn:hover { border-color: var(--accent); color: var(--accent2); }
+    .ssb-btn.on { background: var(--accent); border-color: var(--accent); color: white; }
+    .ssb-upload { display: none; }
+
+    /* SIM4 — LSTM ambiguity cards */
+    .ambig-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--border); }
+    .ambig-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 10px; text-align: center; }
+    .ambig-card h5 { font-size: 10px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-muted); margin-bottom: 8px; }
+    .ambig-chars-row { display: flex; justify-content: center; gap: 8px; margin-bottom: 6px; }
+    .ambig-char { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; background: var(--surface); border: 1px solid var(--border); border-radius: 4px; font-family: var(--mono); font-size: 20px; color: var(--text); }
+    .ambig-char.err { border-color: var(--red); color: var(--red); }
+    .ambig-note { font-size: 10px; color: var(--text-muted); line-height: 1.4; }
+    .context-demo { padding: 12px 14px; }
+    .context-demo p { font-size: 12px; color: var(--text-muted); margin-bottom: 8px; }
+    .ctx-text { font-family: var(--mono); font-size: 14px; padding: 10px 12px; background: var(--surface2); border-radius: 5px; border: 1px solid var(--border); margin-bottom: 8px; line-height: 1.8; }
+    .ctx-ambig { background: rgba(245,158,11,0.2); border-bottom: 2px solid var(--yellow); padding: 0 1px; border-radius: 2px; color: var(--yellow); cursor: pointer; }
+    .ctx-resolved { background: rgba(16,185,129,0.2); border-bottom: 2px solid var(--green); padding: 0 1px; border-radius: 2px; color: var(--green); }
+
+    /* SIM5 — post-processing */
+    .postproc-area { padding: 12px 14px; border-bottom: 1px solid var(--border); }
+    .postproc-text { font-family: var(--mono); font-size: 13px; line-height: 1.8; padding: 12px; background: var(--code-bg); border: 1px solid var(--border); border-radius: 5px; min-height: 120px; white-space: pre-wrap; outline: none; margin-bottom: 8px; }
+    .postproc-text[contenteditable]:focus { border-color: var(--accent); }
+    .pp-err { background: rgba(239,68,68,0.2); border-bottom: 2px solid var(--red); border-radius: 2px; color: var(--red); }
+    .pp-fix { background: rgba(16,185,129,0.2); border-bottom: 2px solid var(--green); border-radius: 2px; color: var(--green); }
+    .pp-warn { background: rgba(245,158,11,0.15); border-bottom: 2px solid var(--yellow); border-radius: 2px; color: var(--yellow); }
+
+    /* CHEAT SHEET */
+    .cheatsheet { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+    .cheatsheet-header { background: var(--surface2); padding: 12px 20px; font-weight: 800; font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent2); border-bottom: 1px solid var(--border); }
+    .cheatsheet-row { display: flex; align-items: baseline; padding: 11px 20px; border-bottom: 1px solid var(--border); gap: 16px; }
+    .cheatsheet-row:last-child { border-bottom: none; }
+    .cheatsheet-key { font-family: var(--mono); font-size: 12.5px; color: var(--accent2); min-width: 180px; flex-shrink: 0; }
+    .cheatsheet-val { font-size: 13px; color: var(--text-muted); }
+
+    /* NEXT */
+    .next-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin: 18px 0; }
+    .next-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; transition: border-color 0.2s; }
+    .next-card:hover { border-color: var(--accent); }
+    .next-card .icon { font-size: 26px; margin-bottom: 10px; }
+    .next-card h4 { font-size: 14px; font-weight: 700; margin-bottom: 5px; }
+    .next-card p { font-size: 12px; color: var(--text-muted); margin: 0; line-height: 1.5; }
+
+    /* SOURCES */
+    .sources { border-top: 1px solid var(--border); padding-top: 28px; margin-top: 52px; }
+    .sources h2 { font-size: 15px; color: var(--text-muted); margin-bottom: 14px; }
+    .sources ul { list-style: none; padding: 0; }
+    .sources li { margin-bottom: 6px; }
+    .sources a { color: var(--accent2); font-size: 12.5px; text-decoration: none; word-break: break-all; }
+    .sources a:hover { text-decoration: underline; }
+
+    @media print { nav { display: none; } body { background: white; color: black; } pre { background: #f5f5f5; } }
+    @media (max-width: 800px) { nav { display: none; } main { padding: 24px 20px; } header h1 { font-size: 30px; } .next-grid { grid-template-columns: 1fr; } .cards { grid-template-columns: 1fr; } .ssb { margin-left: 0; } }
+  </style>
+</head>
+<body>
+
+<nav>
+  <span class="logo">Deep Dive</span>
+  <h2>Contents</h2>
+  <ol>
+    <li><a href="#why">Why It Matters</a></li>
+    <li><a href="#concepts">Core Concepts</a></li>
+    <li><a href="#how">How It Works</a></li>
+    <li><a href="#examples">Examples</a></li>
+    <li><a href="#mistakes">Common Mistakes</a></li>
+    <li><a href="#cheatsheet">Cheat Sheet</a></li>
+    <li><a href="#next">What to Learn Next</a></li>
+  </ol>
+  <h2>Simulations</h2>
+  <ul class="sim-links">
+    <li><a href="#sim-preprocess">Preprocessing</a></li>
+    <li><a href="#sim-detect">Text Detection</a></li>
+    <li><a href="#sim-cnn">CNN Features</a></li>
+    <li><a href="#sim-lstm">LSTM Ambiguity</a></li>
+    <li><a href="#sim-postproc">Post-Processing</a></li>
+  </ul>
+</nav>
+
+<main>
+  <header>
+    <span class="tag">Deep Dive · Verified May 2026</span>
+    <h1>OCR</h1>
+    <div class="subtitle">Optical Character Recognition</div>
+    <div class="meta"><span>Verified: May 2026</span><span>9 sources</span><span>5 interactive simulations</span></div>
+    <div class="essence">OCR converts pixels of text in an image — a scan, photo, or PDF — into machine-readable characters a computer can search, copy, and process.</div>
+  </header>
+
+  <!-- SECTION 2 -->
+  <section id="why">
+    <h2><span class="num">2</span> Why It Matters</h2>
+    <p>The world is full of text locked inside images: scanned contracts, receipts, license plates, medical records, handwritten forms, old books, road signs. OCR is the bridge that unlocks that text for machines.</p>
+    <h3>Real-World Impact</h3>
+    <ul>
+      <li><strong>Invoice &amp; Receipt Processing</strong> — Accounts-payable automation reads vendor invoices without human data entry.</li>
+      <li><strong>Accessibility</strong> — Screen readers use OCR to read text embedded in images for visually impaired users.</li>
+      <li><strong>Search &amp; Archive</strong> — Google Books used OCR to digitize 40+ million books. Scanned PDFs become searchable.</li>
+      <li><strong>Banking &amp; KYC</strong> — ID card scanning, cheque processing, and form digitization.</li>
+      <li><strong>Autonomous Vehicles</strong> — Reading road signs and speed limits in real time.</li>
+      <li><strong>RPA</strong> — Bots use OCR to read legacy systems that have no APIs.</li>
+      <li><strong>Translation Apps</strong> — Google Lens OCRs text from the camera, then translates it live.</li>
+    </ul>
+    <div class="callout info">
+      <span class="label">2026 Status</span>
+      OCR is effectively a solved problem for clean typewritten text (&gt;99% accuracy). Research focus has shifted to handwriting, cursive, and complex multi-column layout. Vision-Language Models (VLMs) like Mistral OCR and Qwen2.5-VL are beginning to replace traditional OCR pipelines for high-value document understanding.
+    </div>
+  </section>
+
+  <!-- SECTION 3 -->
+  <section id="concepts">
+    <h2><span class="num">3</span> Core Concepts</h2>
+    <div class="cards">
+      <div class="card"><h4>Image Preprocessing</h4><p>Cleaning the raw image: binarization, deskewing, noise removal, contrast enhancement, DPI normalization.</p><div class="analogy">Analogy: Ironing a crumpled page before reading it.</div></div>
+      <div class="card"><h4>Text Detection</h4><p>Finding WHERE text exists. Outputs bounding boxes around lines/words. Modern systems use CNN-based detectors (CRAFT, DBNet).</p><div class="analogy">Analogy: Highlighting every sentence before reading.</div></div>
+      <div class="card"><h4>Segmentation</h4><p>Breaking detected regions into lines, words, or characters for the recognizer.</p><div class="analogy">Analogy: Cutting a text strip into individual Scrabble tiles.</div></div>
+      <div class="card"><h4>Feature Extraction (CNN)</h4><p>A CNN scans the image and extracts visual features: edges, curves, loops, strokes that combine into character shapes.</p><div class="analogy">Analogy: Learning to read by first noticing vertical lines, then curves, then letters.</div></div>
+      <div class="card"><h4>Sequence Recognition (LSTM + CTC)</h4><p>BiLSTM reads the feature sequence in both directions. CTC decoder maps the sequence to final characters without per-character alignment.</p><div class="analogy">Analogy: Filling in an ambiguous word by reading surrounding context.</div></div>
+      <div class="card"><h4>Post-Processing</h4><p>Dictionary lookups, regex validation, confidence thresholding. Flags low-confidence results for human review.</p><div class="analogy">Analogy: Phone autocorrect — "teh" → "the" from context.</div></div>
+    </div>
+    <h3>Types of OCR</h3>
+    <table>
+      <tr><th>Type</th><th>Full Name</th><th>What It Reads</th><th>Difficulty</th></tr>
+      <tr><td><strong>OCR</strong></td><td>Optical Character Recognition</td><td>Printed/typewritten characters</td><td><span class="badge badge-green">Easy</span></td></tr>
+      <tr><td><strong>OMR</strong></td><td>Optical Mark Recognition</td><td>Checkboxes, bubbles (exam sheets)</td><td><span class="badge badge-green">Easy</span></td></tr>
+      <tr><td><strong>ICR</strong></td><td>Intelligent Character Recognition</td><td>Handwritten block letters</td><td><span class="badge badge-yellow">Medium</span></td></tr>
+      <tr><td><strong>IWR</strong></td><td>Intelligent Word Recognition</td><td>Handwritten cursive/script</td><td><span class="badge badge-red">Hard</span></td></tr>
+      <tr><td><strong>VLM-OCR</strong></td><td>Vision-Language Model OCR</td><td>Complex layouts, tables, mixed content</td><td><span class="badge badge-blue">Emerging</span></td></tr>
+    </table>
+  </section>
+
+  <!-- SECTION 4 -->
+  <section id="how">
+    <h2><span class="num">4</span> How It Works — Step by Step</h2>
+
+    <div class="diagram-wrap">
+      <svg width="760" height="90" viewBox="0 0 760 90" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system,sans-serif">
+        <rect x="4" y="20" width="100" height="50" rx="6" fill="#1a1d27" stroke="#6366f1" stroke-width="1.5"/>
+        <rect x="120" y="20" width="100" height="50" rx="6" fill="#1a1d27" stroke="#6366f1" stroke-width="1.5"/>
+        <rect x="236" y="20" width="100" height="50" rx="6" fill="#1a1d27" stroke="#6366f1" stroke-width="1.5"/>
+        <rect x="352" y="20" width="110" height="50" rx="6" fill="#1a1d27" stroke="#818cf8" stroke-width="2"/>
+        <rect x="478" y="20" width="120" height="50" rx="6" fill="#1a1d27" stroke="#818cf8" stroke-width="2"/>
+        <rect x="614" y="20" width="142" height="50" rx="6" fill="#1a1d27" stroke="#10b981" stroke-width="1.5"/>
+        <line x1="104" y1="45" x2="118" y2="45" stroke="#2e3147" stroke-width="2" marker-end="url(#arr)"/>
+        <line x1="220" y1="45" x2="234" y2="45" stroke="#2e3147" stroke-width="2" marker-end="url(#arr)"/>
+        <line x1="336" y1="45" x2="350" y2="45" stroke="#2e3147" stroke-width="2" marker-end="url(#arr)"/>
+        <line x1="462" y1="45" x2="476" y2="45" stroke="#2e3147" stroke-width="2" marker-end="url(#arr)"/>
+        <line x1="598" y1="45" x2="612" y2="45" stroke="#2e3147" stroke-width="2" marker-end="url(#arr)"/>
+        <defs><marker id="arr" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto"><path d="M0,0 L0,6 L6,3 z" fill="#2e3147"/></marker></defs>
+        <text x="54" y="40" text-anchor="middle" fill="#8892a4" font-size="10">Image</text>
+        <text x="54" y="54" text-anchor="middle" fill="#8892a4" font-size="10">Input</text>
+        <text x="170" y="40" text-anchor="middle" fill="#8892a4" font-size="10">Pre-</text>
+        <text x="170" y="54" text-anchor="middle" fill="#8892a4" font-size="10">processing</text>
+        <text x="286" y="40" text-anchor="middle" fill="#8892a4" font-size="10">Text</text>
+        <text x="286" y="54" text-anchor="middle" fill="#8892a4" font-size="10">Detection</text>
+        <text x="407" y="37" text-anchor="middle" fill="#818cf8" font-size="10">Feature Extract</text>
+        <text x="407" y="51" text-anchor="middle" fill="#818cf8" font-size="10">(CNN)</text>
+        <text x="538" y="37" text-anchor="middle" fill="#818cf8" font-size="10">Sequence Recog.</text>
+        <text x="538" y="51" text-anchor="middle" fill="#818cf8" font-size="10">(LSTM + CTC)</text>
+        <text x="685" y="37" text-anchor="middle" fill="#10b981" font-size="10">Post-processing</text>
+        <text x="685" y="51" text-anchor="middle" fill="#10b981" font-size="10">→ Text Output</text>
+      </svg>
+      <figcaption>Modern deep learning OCR pipeline</figcaption>
+    </div>
+
+    <div class="steps">
+
+      <!-- STEP 1 -->
+      <div class="step">
+        <div class="step-header">
+          <div class="step-num">1</div>
+          <div class="step-content">
+            <h4>Image Input</h4>
+            <p>Source: scanned document (TIFF/PNG), photo (JPEG), or PDF page rasterized at 300 DPI. Resolution is critical — below 150 DPI accuracy drops sharply. 300 DPI is the minimum standard; 600 DPI for handwriting.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- STEP 2 + SIM 1 -->
+      <div class="step">
+        <div class="step-header">
+          <div class="step-num">2</div>
+          <div class="step-content">
+            <h4>Preprocessing</h4>
+            <p><strong>Binarization:</strong> Convert to black/white via Otsu's or adaptive thresholding.<br>
+            <strong>Deskewing:</strong> Rotate to align text horizontally — skew &gt;5° destroys line detection.<br>
+            <strong>Denoising:</strong> Gaussian/median filters remove scanner artifacts.<br>
+            <strong>Normalization:</strong> Resize character height to a standard target (e.g., 32px).</p>
+          </div>
+        </div>
+        <div class="ssb" id="sim-preprocess">
+          <div class="ssb-title">▶ Try It: Preprocessing Playground</div>
+          <div class="ssb-btns">
+            <button class="ssb-btn on" id="pp-sample-btn" onclick="ppLoadSample()">Sample Invoice</button>
+            <label class="ssb-btn" for="pp-upload" style="cursor:pointer">Upload Image</label>
+            <input type="file" id="pp-upload" class="ssb-upload" accept="image/*" onchange="ppHandleUpload(event)">
+            <button class="ssb-btn" onclick="ppReset()">Reset</button>
+          </div>
+          <div class="ssb-canvases">
+            <div class="ssb-panel"><div class="ssb-panel-label">Original</div><canvas id="pp-orig" class="ssb-canvas"></canvas></div>
+            <div class="ssb-panel"><div class="ssb-panel-label">Grayscale</div><canvas id="pp-gray" class="ssb-canvas"></canvas></div>
+            <div class="ssb-panel"><div class="ssb-panel-label">Binarized (OCR input)</div><canvas id="pp-bin" class="ssb-canvas"></canvas></div>
+          </div>
+          <div class="ssb-controls">
+            <div class="ssb-ctrl"><label>Threshold <em id="pp-lbl-t">128</em></label><input type="range" id="pp-threshold" min="30" max="240" value="128" oninput="ppUpdate()"></div>
+            <div class="ssb-ctrl"><label>Blur <em id="pp-lbl-b">0</em>px</label><input type="range" id="pp-blur" min="0" max="8" value="0" oninput="ppUpdate()"></div>
+            <div class="ssb-ctrl"><label>Brightness <em id="pp-lbl-br">100</em>%</label><input type="range" id="pp-bri" min="30" max="200" value="100" oninput="ppUpdate()"></div>
+            <div class="ssb-ctrl"><label>Noise <em id="pp-lbl-n">0</em></label><input type="range" id="pp-noise" min="0" max="80" value="0" oninput="ppUpdate()"></div>
+          </div>
+          <div class="ssb-status">
+            <span style="white-space:nowrap;font-weight:700;font-size:10px;text-transform:uppercase;letter-spacing:.07em;">OCR Readiness</span>
+            <div class="ssb-track"><div class="ssb-fill" id="pp-fill" style="width:0%"></div></div>
+            <span id="pp-score-txt" style="min-width:260px">Load image to begin</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- STEP 3 + SIM 2 -->
+      <div class="step">
+        <div class="step-header">
+          <div class="step-num">3</div>
+          <div class="step-content">
+            <h4>Text Detection</h4>
+            <p>A detector model (DBNet, CRAFT, EAST) draws bounding boxes around text regions. Modern systems detect at word or line level — separating "where is text?" from "what does it say?". Each box gets a confidence score.</p>
+          </div>
+        </div>
+        <div class="ssb" id="sim-detect">
+          <div class="ssb-title">▶ Try It: Bounding Box Detector</div>
+          <div class="ssb-btns">
+            <button class="ssb-btn on" id="det-lines-btn" onclick="detSetMode('lines')">Lines</button>
+            <button class="ssb-btn" id="det-words-btn" onclick="detSetMode('words')">Words</button>
+            <span style="font-size:11px;color:var(--text-muted);margin-left:8px;">Slide to filter by confidence</span>
+          </div>
+          <div class="ssb-canvases" style="display:block;">
+            <div class="ssb-panel" style="border-right:none;">
+              <div class="ssb-panel-label">Detected text regions (color = confidence)</div>
+              <canvas id="det-canvas" class="ssb-canvas" style="max-height:220px;width:100%;object-fit:contain;"></canvas>
+            </div>
+          </div>
+          <div class="ssb-controls" style="grid-template-columns:1fr;">
+            <div class="ssb-ctrl"><label>Min confidence threshold <em id="det-lbl">0</em>%</label><input type="range" id="det-conf" min="0" max="99" value="0" oninput="detUpdate()"></div>
+          </div>
+          <div class="ssb-status">
+            <span style="white-space:nowrap;font-weight:700;font-size:10px;text-transform:uppercase;letter-spacing:.07em;">Boxes shown</span>
+            <span id="det-count-txt" style="color:var(--accent2);font-family:var(--mono);font-size:13px;"></span>
+            <span id="det-legend" style="margin-left:auto;font-size:11px;">
+              <span style="color:var(--green)">■</span> high (&gt;80%)
+              <span style="color:var(--yellow);margin-left:8px">■</span> med (50–80%)
+              <span style="color:var(--red);margin-left:8px">■</span> low (&lt;50%)
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- STEP 4 + SIM 3 -->
+      <div class="step">
+        <div class="step-header">
+          <div class="step-num">4</div>
+          <div class="step-content">
+            <h4>Feature Extraction (CNN)</h4>
+            <p>Each text region passes through a CNN backbone (ResNet, VGG). Early layers detect edges and strokes. Deeper layers combine them into character shapes. The output is a feature map — a sequence of vectors the LSTM reads next.</p>
+          </div>
+        </div>
+        <div class="ssb" id="sim-cnn">
+          <div class="ssb-title">▶ Try It: CNN Feature Maps (Sobel Edge Detection)</div>
+          <div class="ssb-canvases">
+            <div class="ssb-panel"><div class="ssb-panel-label">Grayscale input</div><canvas id="cnn-orig" class="ssb-canvas"></canvas></div>
+            <div class="ssb-panel"><div class="ssb-panel-label">Layer 1 — horizontal edges (Gx)</div><canvas id="cnn-gx" class="ssb-canvas"></canvas></div>
+            <div class="ssb-panel"><div class="ssb-panel-label">Layer 2 — all edges combined (magnitude)</div><canvas id="cnn-mag" class="ssb-canvas"></canvas></div>
+          </div>
+          <div class="ssb-controls" style="grid-template-columns:1fr;">
+            <div class="ssb-ctrl"><label>Edge amplify <em id="cnn-lbl">2</em>×</label><input type="range" id="cnn-amp" min="5" max="60" value="20" oninput="cnnUpdate()"></div>
+          </div>
+          <div class="ssb-status"><span style="font-size:11px;color:var(--text-muted);">Sobel operator simulates what early CNN convolutional layers detect. Drag slider to amplify subtle edges — like increasing layer depth.</span></div>
+        </div>
+      </div>
+
+      <!-- STEP 5 + SIM 4 -->
+      <div class="step">
+        <div class="step-header">
+          <div class="step-num">5</div>
+          <div class="step-content">
+            <h4>Sequence Recognition (BiLSTM + CTC)</h4>
+            <p>The feature sequence feeds into a Bidirectional LSTM. It reads context left-to-right AND right-to-left — knowing surrounding characters helps resolve ambiguous ones (is that an <code>l</code>, <code>1</code>, or <code>I</code>?). CTC decoder collapses the output into final characters.</p>
+          </div>
+        </div>
+        <div class="ssb" id="sim-lstm">
+          <div class="ssb-title">▶ Try It: Character Ambiguity &amp; Context Resolution</div>
+          <div class="ambig-grid">
+            <div class="ambig-card">
+              <h5>Most Common Confusion</h5>
+              <div class="ambig-chars-row">
+                <span class="ambig-char">l</span>
+                <span class="ambig-char err">1</span>
+                <span class="ambig-char">I</span>
+                <span class="ambig-char">|</span>
+              </div>
+              <div class="ambig-note">Lowercase L, digit 1, uppercase I, pipe — pixel-identical in many fonts at OCR resolution</div>
+            </div>
+            <div class="ambig-card">
+              <h5>Number vs Letter O</h5>
+              <div class="ambig-chars-row">
+                <span class="ambig-char err">0</span>
+                <span class="ambig-char">O</span>
+                <span class="ambig-char">o</span>
+              </div>
+              <div class="ambig-note">Zero vs letter O vs lowercase o — context (numeric field vs text field) resolves this</div>
+            </div>
+            <div class="ambig-card">
+              <h5>Two Chars → One</h5>
+              <div class="ambig-chars-row">
+                <span class="ambig-char err">rn</span>
+                <span class="ambig-char">m</span>
+              </div>
+              <div class="ambig-note">"rn" at low resolution merges into "m". Also: "cl" → "d", "li" → "h"</div>
+            </div>
+          </div>
+          <div class="context-demo">
+            <p>Click <strong>Resolve with BiLSTM Context</strong> to see how surrounding characters disambiguate the highlighted chars:</p>
+            <div class="ctx-text" id="lstm-text"></div>
+            <button class="ssb-btn on" onclick="lstmToggle()" id="lstm-btn">Resolve with BiLSTM Context</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- STEP 6 + SIM 5 -->
+      <div class="step">
+        <div class="step-header">
+          <div class="step-num">6</div>
+          <div class="step-content">
+            <h4>Post-Processing</h4>
+            <p>Language model scoring, dictionary lookup, regex validation (dates, amounts, IDs), and confidence scoring. Results below threshold are flagged for human review. Domain rules add another validation layer.</p>
+          </div>
+        </div>
+        <div class="ssb" id="sim-postproc">
+          <div class="ssb-title">▶ Try It: OCR Error Detection &amp; Correction</div>
+          <div class="postproc-area">
+            <div class="postproc-text" id="pp2-text" contenteditable="true">lnvoice #lNV-2O26-OO1
+Date: 2O26-O5-3O
+C1ient: Gun Thronon
+ltem: OCR Software License
+Price: $l,234.56
+TOTAL: $l,234.56  (USD)</div>
+            <div class="ssb-btns" style="padding:0;border:none;margin-top:6px;">
+              <button class="ssb-btn" onclick="pp2Detect()">Detect Errors</button>
+              <button class="ssb-btn" onclick="pp2FixL()">Fix l → 1</button>
+              <button class="ssb-btn" onclick="pp2FixO()">Fix O → 0</button>
+              <button class="ssb-btn" onclick="pp2Validate()">Validate Fields</button>
+              <button class="ssb-btn" onclick="pp2Reset()" style="margin-left:auto;">Reset</button>
+            </div>
+          </div>
+          <div class="ssb-status" id="pp2-status"><span style="color:var(--text-muted);">Edit the text above or click buttons to see post-processing in action</span></div>
+        </div>
+      </div>
+
+      <!-- STEP 7 -->
+      <div class="step">
+        <div class="step-header">
+          <div class="step-num">7</div>
+          <div class="step-content">
+            <h4>Output</h4>
+            <p>Plain text, structured JSON (bounding boxes + confidence scores), hOCR format (HTML with position metadata), or searchable PDF. The choice depends on downstream use: RPA needs JSON, search engines need plain text, archival needs searchable PDF.</p>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /steps -->
+
+    <div class="diagram-wrap" style="margin-top:32px;">
+      <svg width="680" height="130" viewBox="0 0 680 130" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system,sans-serif">
+        <rect x="10" y="40" width="80" height="50" rx="4" fill="#252836" stroke="#2e3147"/>
+        <text x="50" y="62" text-anchor="middle" fill="#8892a4" font-size="9">Text Strip</text>
+        <text x="50" y="74" text-anchor="middle" fill="#8892a4" font-size="9">Image</text>
+        <line x1="90" y1="65" x2="110" y2="65" stroke="#2e3147" stroke-width="1.5" marker-end="url(#a2)"/>
+        <rect x="112" y="20" width="130" height="90" rx="6" fill="#1a1d27" stroke="#6366f1" stroke-width="1.5"/>
+        <text x="177" y="50" text-anchor="middle" fill="#6366f1" font-size="11" font-weight="700">CNN</text>
+        <text x="177" y="65" text-anchor="middle" fill="#8892a4" font-size="9">ResNet / VGG</text>
+        <text x="177" y="78" text-anchor="middle" fill="#8892a4" font-size="9">Feature Map</text>
+        <text x="177" y="91" text-anchor="middle" fill="#8892a4" font-size="9">[W × 512]</text>
+        <line x1="242" y1="65" x2="262" y2="65" stroke="#2e3147" stroke-width="1.5" marker-end="url(#a2)"/>
+        <rect x="264" y="20" width="140" height="90" rx="6" fill="#1a1d27" stroke="#818cf8" stroke-width="2"/>
+        <text x="334" y="50" text-anchor="middle" fill="#818cf8" font-size="11" font-weight="700">BiLSTM</text>
+        <text x="334" y="65" text-anchor="middle" fill="#8892a4" font-size="9">→ Forward pass</text>
+        <text x="334" y="78" text-anchor="middle" fill="#8892a4" font-size="9">← Backward pass</text>
+        <text x="334" y="91" text-anchor="middle" fill="#8892a4" font-size="9">Context-aware</text>
+        <line x1="404" y1="65" x2="424" y2="65" stroke="#2e3147" stroke-width="1.5" marker-end="url(#a2)"/>
+        <rect x="426" y="20" width="100" height="90" rx="6" fill="#1a1d27" stroke="#c678dd" stroke-width="1.5"/>
+        <text x="476" y="50" text-anchor="middle" fill="#c678dd" font-size="11" font-weight="700">CTC</text>
+        <text x="476" y="65" text-anchor="middle" fill="#8892a4" font-size="9">Decoder</text>
+        <text x="476" y="78" text-anchor="middle" fill="#8892a4" font-size="9">Collapse repeats</text>
+        <text x="476" y="91" text-anchor="middle" fill="#8892a4" font-size="9">→ Characters</text>
+        <line x1="526" y1="65" x2="546" y2="65" stroke="#2e3147" stroke-width="1.5" marker-end="url(#a2)"/>
+        <rect x="548" y="40" width="120" height="50" rx="4" fill="#0f2a1e" stroke="#10b981"/>
+        <text x="608" y="60" text-anchor="middle" fill="#10b981" font-size="11" font-weight="700">"Hello World"</text>
+        <text x="608" y="75" text-anchor="middle" fill="#8892a4" font-size="9">Text + Confidence</text>
+        <defs><marker id="a2" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto"><path d="M0,0 L0,6 L6,3 z" fill="#2e3147"/></marker></defs>
+      </svg>
+      <figcaption>Deep learning OCR: CNN → BiLSTM → CTC decoding</figcaption>
+    </div>
+  </section>
+
+  <!-- SECTION 5 -->
+  <section id="examples">
+    <h2><span class="num">5</span> Examples</h2>
+    <h3>Example 1 — Tesseract (Simplest, CPU)</h3>
+    <pre><code><span class="cm"># pip install pytesseract pillow opencv-python</span>
+<span class="cm"># apt-get install tesseract-ocr</span>
+<span class="kw">import</span> pytesseract
+<span class="kw">from</span> PIL <span class="kw">import</span> Image
+<span class="kw">import</span> cv2
+
+<span class="kw">def</span> <span class="fn">preprocess</span>(<span class="var">path</span>):
+    img = cv2.imread(<span class="var">path</span>)
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    _, binary = cv2.threshold(gray, <span class="num-lit">0</span>, <span class="num-lit">255</span>, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    <span class="kw">return</span> Image.fromarray(binary)
+
+text = pytesseract.image_to_string(preprocess(<span class="str">"invoice.png"</span>), lang=<span class="str">'eng'</span>)
+<span class="fn">print</span>(text)
+
+<span class="cm"># With confidence per word:</span>
+data = pytesseract.image_to_data(preprocess(<span class="str">"invoice.png"</span>), output_type=pytesseract.Output.DICT)
+<span class="kw">for</span> i, word <span class="kw">in</span> <span class="fn">enumerate</span>(data[<span class="str">'text'</span>]):
+    <span class="kw">if</span> <span class="fn">int</span>(data[<span class="str">'conf'</span>][i]) &gt; <span class="num-lit">60</span>:
+        <span class="fn">print</span>(<span class="str">f"{word:20} {data['conf'][i]}%"</span>)</code></pre>
+
+    <h3>Example 2 — EasyOCR (80+ languages)</h3>
+    <pre><code><span class="cm"># pip install easyocr</span>
+<span class="kw">import</span> easyocr
+
+reader = easyocr.Reader([<span class="str">'en'</span>, <span class="str">'th'</span>])  <span class="cm"># English + Thai</span>
+<span class="kw">for</span> bbox, text, conf <span class="kw">in</span> reader.readtext(<span class="str">'document.jpg'</span>):
+    <span class="fn">print</span>(<span class="str">f"[{conf:.0%}] {text}"</span>)</code></pre>
+
+    <h3>Example 3 — PaddleOCR (best accuracy, complex layouts)</h3>
+    <pre><code><span class="cm"># pip install paddlepaddle paddleocr</span>
+<span class="kw">from</span> paddleocr <span class="kw">import</span> PaddleOCR, PPStructure
+
+ocr = PaddleOCR(use_angle_cls=<span class="kw">True</span>, lang=<span class="str">'en'</span>)
+<span class="kw">for</span> line <span class="kw">in</span> ocr.ocr(<span class="str">'invoice.jpg'</span>, cls=<span class="kw">True</span>)[<span class="num-lit">0</span>]:
+    bbox, (text, conf) = line
+    <span class="fn">print</span>(<span class="str">f"{text:40} ({conf:.1%})"</span>)
+
+<span class="cm"># Table extraction:</span>
+table_engine = PPStructure(table=<span class="kw">True</span>, ocr=<span class="kw">True</span>, lang=<span class="str">'en'</span>)
+result = table_engine(<span class="str">'table.jpg'</span>)  <span class="cm"># returns HTML table</span></code></pre>
+
+    <h3>Example 4 — Accuracy Measurement</h3>
+    <pre><code><span class="kw">from</span> jiwer <span class="kw">import</span> cer, wer
+ground_truth = <span class="str">"Invoice Total: $1,234.56"</span>
+ocr_output   = <span class="str">"lnvoice Total: $1,234.56"</span>
+<span class="fn">print</span>(<span class="str">f"CER: {cer(ground_truth, ocr_output):.2%}"</span>)  <span class="cm"># → 4.17%</span>
+<span class="fn">print</span>(<span class="str">f"WER: {wer(ground_truth, ocr_output):.2%}"</span>)  <span class="cm"># → 25.00%</span></code></pre>
+  </section>
+
+  <!-- SECTION 6 -->
+  <section id="mistakes">
+    <h2><span class="num">6</span> Common Mistakes &amp; Misconceptions</h2>
+    <div class="callout err"><span class="label">Mistake 1</span><strong>Skipping preprocessing</strong><br>Raw photos have glare, distortion, and shadows. Fix: always apply deskew, binarization, denoising. OpenCV's <code>warpPerspective</code> corrects perspective. Adaptive thresholding handles uneven lighting.</div>
+    <div class="callout err"><span class="label">Mistake 2</span><strong>Low DPI images (&lt;200 DPI)</strong><br>At 72 DPI most characters are too pixelated to distinguish. Fix: scan at 300 DPI minimum. If stuck with low-res images, try super-resolution preprocessing (Real-ESRGAN) before OCR.</div>
+    <div class="callout err"><span class="label">Mistake 3</span><strong>Trusting OCR output blindly</strong><br>l/1/I and 0/O are the most common confusions. Also: <code>rn</code>→<code>m</code>, <code>cl</code>→<code>d</code>. Fix: post-process with domain knowledge — amounts fields expect digits only; dates match a regex pattern.</div>
+    <div class="callout warn"><span class="label">Mistake 4</span><strong>Assuming all OCR handles handwriting</strong><br>Standard engines are trained on printed text. Handwriting recognition needs ICR/IWR models. Cursive accuracy is still 85–92% vs 99%+ for clean print.</div>
+    <div class="callout warn"><span class="label">Mistake 5</span><strong>No confidence thresholding</strong><br>OCR always outputs something even when guessing. A 40% confidence word is essentially random. Fix: threshold at 70–85% and flag anything below for human review.</div>
+  </section>
+
+  <!-- SECTION 7 -->
+  <section id="cheatsheet">
+    <h2><span class="num">7</span> Cheat Sheet / Quick Reference</h2>
+    <h3>Tool Comparison (2026)</h3>
+    <table>
+      <tr><th>Tool</th><th>Best For</th><th>Languages</th><th>GPU</th><th>Accuracy</th><th>Setup</th></tr>
+      <tr><td><strong>Tesseract 5</strong></td><td>Edge, offline, simple docs</td><td>100+</td><td>No</td><td>~95–97%</td><td><span class="badge badge-green">Simple</span></td></tr>
+      <tr><td><strong>EasyOCR</strong></td><td>Quick proto, 80+ langs</td><td>80+</td><td>Optional</td><td>~96–98%</td><td><span class="badge badge-green">Simple</span></td></tr>
+      <tr><td><strong>PaddleOCR v5</strong></td><td>Complex layouts, tables, CJK</td><td>80+ (strong CJK)</td><td>Optional</td><td>~98–99%</td><td><span class="badge badge-yellow">Medium</span></td></tr>
+      <tr><td><strong>TrOCR</strong></td><td>Handwriting</td><td>English primary</td><td>Recommended</td><td>~99% printed</td><td><span class="badge badge-yellow">Medium</span></td></tr>
+      <tr><td><strong>Mistral OCR / Qwen2.5-VL</strong></td><td>Document understanding, tables</td><td>Multilingual</td><td>Yes (~6GB+)</td><td>~99%+</td><td><span class="badge badge-red">Complex</span></td></tr>
+    </table>
+    <h3>Key Terms</h3>
+    <div class="cheatsheet">
+      <div class="cheatsheet-header">OCR Quick Reference</div>
+      <div class="cheatsheet-row"><span class="cheatsheet-key">CER</span><span class="cheatsheet-val">Character Error Rate. Wrong chars ÷ total chars. Primary OCR metric. &lt;1% = excellent.</span></div>
+      <div class="cheatsheet-row"><span class="cheatsheet-key">WER</span><span class="cheatsheet-val">Word Error Rate. Wrong words ÷ total words. Stricter — one bad char breaks the whole word.</span></div>
+      <div class="cheatsheet-row"><span class="cheatsheet-key">DPI</span><span class="cheatsheet-val">Dots Per Inch. 300 minimum, 600 for handwriting. 72 DPI (screen) = too low.</span></div>
+      <div class="cheatsheet-row"><span class="cheatsheet-key">Binarization</span><span class="cheatsheet-val">Convert to pure black/white. Otsu: auto threshold. Adaptive: handles uneven lighting.</span></div>
+      <div class="cheatsheet-row"><span class="cheatsheet-key">Deskewing</span><span class="cheatsheet-val">Rotate image to align text horizontally. Skew &gt;5° destroys line detection.</span></div>
+      <div class="cheatsheet-row"><span class="cheatsheet-key">CTC</span><span class="cheatsheet-val">Connectionist Temporal Classification. Trains sequence models without per-character label alignment.</span></div>
+      <div class="cheatsheet-row"><span class="cheatsheet-key">hOCR</span><span class="cheatsheet-val">HTML output format embedding position metadata. Used for searchable PDFs.</span></div>
+      <div class="cheatsheet-row"><span class="cheatsheet-key">DBNet / CRAFT</span><span class="cheatsheet-val">State-of-the-art text detection models. DBNet: fast real-time. CRAFT: curved/artistic text.</span></div>
+    </div>
+  </section>
+
+  <!-- SECTION 8 -->
+  <section id="next">
+    <h2><span class="num">8</span> What to Learn Next</h2>
+    <div class="next-grid">
+      <div class="next-card"><div class="icon">📐</div><h4>Document Layout Analysis</h4><p>Detect tables, columns, headers, figures before OCR. Libraries: LayoutParser, PaddleOCR PP-Structure, DocLayNet.</p></div>
+      <div class="next-card"><div class="icon">🏷️</div><h4>Named Entity Recognition</h4><p>After OCR gives raw text, NER extracts structured info: names, dates, amounts. Combine OCR + NER for invoice automation.</p></div>
+      <div class="next-card"><div class="icon">🤖</div><h4>Vision-Language Models</h4><p>Qwen2.5-VL, Mistral OCR, InternVL3 read documents as images and output structured data — bypassing traditional OCR pipelines.</p></div>
+    </div>
+    <div class="callout tip">
+      <span class="label">Practice Exercise</span>
+      <strong>Build a receipt OCR pipeline:</strong><br>
+      1. Photo of any receipt.<br>2. <code>pip install easyocr</code><br>
+      3. <code>reader = easyocr.Reader(['en']); print(reader.readtext('receipt.jpg', detail=0))</code><br>
+      4. Find at least one l/1 or O/0 confusion. Write regex to fix it.
+    </div>
+  </section>
+
+  <div class="sources">
+    <h2>Sources Used (Verified May 2026)</h2>
+    <ul>
+      <li><a href="https://mobidev.biz/blog/ocr-technology-optical-character-recognition-machine-learning">OCR Technology Explained for Product Owners: 2026 Guide — MobiDev</a></li>
+      <li><a href="https://aimultiple.com/ocr-technology">State of OCR technology in 2026 — AIMultiple</a></li>
+      <li><a href="https://pdf.abbyy.com/learning-center/what-is-ocr/">OCR Explained — ABBYY</a></li>
+      <li><a href="https://aws.amazon.com/what-is/ocr/">What is OCR? — AWS</a></li>
+      <li><a href="https://labelyourdata.com/articles/ocr-with-deep-learning">OCR Deep Learning 2026 — Label Your Data</a></li>
+      <li><a href="https://dropbox.tech/machine-learning/creating-a-modern-ocr-pipeline-using-computer-vision-and-deep-learning">Creating a Modern OCR Pipeline — Dropbox Engineering</a></li>
+      <li><a href="https://www.ibm.com/think/topics/optical-character-recognition">What Is OCR? — IBM</a></li>
+      <li><a href="https://www.codesota.com/ocr/paddleocr-vs-tesseract">PaddleOCR vs Tesseract vs EasyOCR 2026 — CodeSOTA</a></li>
+      <li><a href="https://rossum.ai/blog/ocr-accuracy/">Understanding OCR Accuracy — Rossum</a></li>
+    </ul>
+  </div>
+</main>
+
+<script>
+(function() {
+  // ══════════════════════════════════════════════════
+  // SHARED UTILITIES
+  // ══════════════════════════════════════════════════
+  function drawInvoice(canvas) {
+    const W = 420, H = 210;
+    canvas.width = W; canvas.height = H;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#f8f6f0'; ctx.fillRect(0,0,W,H);
+    const g = ctx.createLinearGradient(0,0,W,H);
+    g.addColorStop(0,'rgba(0,0,0,0.18)'); g.addColorStop(0.4,'rgba(0,0,0,0.02)'); g.addColorStop(1,'rgba(0,0,0,0.12)');
+    ctx.fillStyle = g; ctx.fillRect(0,0,W,H);
+    for (let i=0;i<1800;i++){const x=Math.random()*W,y=Math.random()*H,v=180+Math.random()*60;ctx.fillStyle=`rgba(${v},${v},${v},0.6)`;ctx.fillRect(x,y,1,1);}
+    ctx.fillStyle='#111'; ctx.font='bold 15px Courier New,monospace'; ctx.fillText('INVOICE  #INV-2026-001',18,35);
+    ctx.font='13px Courier New,monospace'; ctx.fillStyle='#222';
+    ctx.fillText('──────────────────────────────────',18,52);
+    ctx.fillText('Date:     2026-05-30',18,72);
+    ctx.fillText('Client:   Gun Thronon',18,92);
+    ctx.fillText('Item:     OCR Software License',18,112);
+    ctx.fillText('Qty:      1',18,132);
+    ctx.fillText('Price:    $1,234.56',18,152);
+    ctx.fillText('──────────────────────────────────',18,166);
+    ctx.font='bold 13px Courier New,monospace'; ctx.fillText('TOTAL:    $1,234.56  (USD)',18,184);
+  }
+  function toGray(canvas) {
+    const ctx=canvas.getContext('2d'),id=ctx.getImageData(0,0,canvas.width,canvas.height),d=id.data;
+    const out=new Uint8ClampedArray(canvas.width*canvas.height);
+    for(let i=0;i<out.length;i++) out[i]=Math.round(0.299*d[i*4]+0.587*d[i*4+1]+0.114*d[i*4+2]);
+    return out;
+  }
+  function boxBlur(gray,w,h,r) {
+    if(r===0) return gray;
+    const out=new Uint8ClampedArray(gray.length);
+    for(let y=0;y<h;y++) for(let x=0;x<w;x++){let s=0,c=0;for(let dy=-r;dy<=r;dy++) for(let dx=-r;dx<=r;dx++){const nx=x+dx,ny=y+dy;if(nx>=0&&nx<w&&ny>=0&&ny<h){s+=gray[ny*w+nx];c++;}}out[y*w+x]=s/c;}
+    return out;
+  }
+  function thresh(gray,t){const out=new Uint8ClampedArray(gray.length);for(let i=0;i<gray.length;i++)out[i]=gray[i]>t?255:0;return out;}
+  function applyBri(gray,pct){if(pct===100)return gray;const f=pct/100,out=new Uint8ClampedArray(gray.length);for(let i=0;i<gray.length;i++)out[i]=Math.min(255,Math.max(0,gray[i]*f));return out;}
+  function addNoise(gray,amt){if(amt===0)return gray;const out=new Uint8ClampedArray(gray.length);for(let i=0;i<gray.length;i++)out[i]=Math.min(255,Math.max(0,gray[i]+(Math.random()-.5)*amt*2));return out;}
+  function putGray(canvas,data,w,h){canvas.width=w;canvas.height=h;const ctx=canvas.getContext('2d'),id=ctx.createImageData(w,h);for(let i=0;i<data.length;i++){id.data[i*4]=id.data[i*4+1]=id.data[i*4+2]=data[i];id.data[i*4+3]=255;}ctx.putImageData(id,0,0);}
+
+  // ══════════════════════════════════════════════════
+  // SIM 1 — PREPROCESSING
+  // ══════════════════════════════════════════════════
+  let ppGray=null, ppW=0, ppH=0;
+  window.ppLoadSample = function() {
+    const c=document.getElementById('pp-orig'); drawInvoice(c); ppGray=toGray(c); ppW=c.width; ppH=c.height; ppUpdate();
+  };
+  window.ppHandleUpload = function(evt) {
+    const file=evt.target.files[0]; if(!file)return;
+    const reader=new FileReader(); reader.onload=function(e){const img=new Image();img.onload=function(){const maxW=420,scale=Math.min(1,maxW/img.width),W=Math.round(img.width*scale),H=Math.round(img.height*scale);const c=document.getElementById('pp-orig');c.width=W;c.height=H;c.getContext('2d').drawImage(img,0,0,W,H);ppGray=toGray(c);ppW=W;ppH=H;ppUpdate();};img.src=e.target.result;};reader.readAsDataURL(file);
+  };
+  window.ppReset = function() {
+    document.getElementById('pp-threshold').value=128; document.getElementById('pp-blur').value=0;
+    document.getElementById('pp-bri').value=100; document.getElementById('pp-noise').value=0; ppUpdate();
+  };
+  window.ppUpdate = function() {
+    if(!ppGray) return;
+    const t=+document.getElementById('pp-threshold').value, bl=+document.getElementById('pp-blur').value,
+          br=+document.getElementById('pp-bri').value, n=+document.getElementById('pp-noise').value;
+    document.getElementById('pp-lbl-t').textContent=t;
+    document.getElementById('pp-lbl-b').textContent=bl;
+    document.getElementById('pp-lbl-br').textContent=br;
+    document.getElementById('pp-lbl-n').textContent=n;
+    let g=applyBri(ppGray,br); g=addNoise(g,n);
+    putGray(document.getElementById('pp-gray'),g,ppW,ppH);
+    const bin=thresh(boxBlur(g,ppW,ppH,bl),t);
+    putGray(document.getElementById('pp-bin'),bin,ppW,ppH);
+    let blacks=0; for(let i=0;i<bin.length;i++) if(bin[i]===0) blacks++;
+    const r=blacks/bin.length;
+    let pct,msg,col;
+    if(r<0.01){pct=15;msg='Too light — threshold too high, text invisible';col='#ef4444';}
+    else if(r<0.04){pct=45;msg='Light — some characters may be lost';col='#f59e0b';}
+    else if(r<0.08){pct=88;msg='Good — clear text/background separation';col='#10b981';}
+    else if(r<0.18){pct=96;msg='Excellent — optimal for OCR recognition';col='#10b981';}
+    else if(r<0.35){pct=70;msg='Noisy — background artifacts will cause errors';col='#f59e0b';}
+    else if(r<0.55){pct=35;msg='Very noisy — l/1/O/0 confusions likely';col='#f59e0b';}
+    else{pct=12;msg='Too dark — threshold too low';col='#ef4444';}
+    const fill=document.getElementById('pp-fill'); fill.style.width=pct+'%'; fill.style.background=col;
+    const st=document.getElementById('pp-score-txt'); st.textContent=pct+'% — '+msg; st.style.color=col;
+  };
+
+  // ══════════════════════════════════════════════════
+  // SIM 2 — TEXT DETECTION
+  // ══════════════════════════════════════════════════
+  const LINE_BOXES = [
+    {x:14,y:19,w:268,h:20,conf:97,text:'INVOICE #INV-2026-001'},
+    {x:14,y:57,w:220,h:18,conf:95,text:'Date: 2026-05-30'},
+    {x:14,y:77,w:230,h:18,conf:88,text:'Client: Gun Thronon'},
+    {x:14,y:97,w:294,h:18,conf:91,text:'Item: OCR Software License'},
+    {x:14,y:117,w:116,h:18,conf:96,text:'Qty: 1'},
+    {x:14,y:137,w:202,h:18,conf:94,text:'Price: $1,234.56'},
+    {x:14,y:169,w:288,h:20,conf:99,text:'TOTAL: $1,234.56 (USD)'},
+  ];
+  const WORD_BOXES = [
+    {x:14,y:19,w:90,h:20,conf:97,text:'INVOICE'},{x:110,y:19,w:172,h:20,conf:94,text:'#INV-2026-001'},
+    {x:14,y:57,w:52,h:18,conf:95,text:'Date:'},{x:70,y:57,w:164,h:18,conf:96,text:'2026-05-30'},
+    {x:14,y:77,w:58,h:18,conf:89,text:'Client:'},{x:76,y:77,w:38,h:18,conf:82,text:'Gun'},{x:118,y:77,w:80,h:18,conf:78,text:'Thronon'},
+    {x:14,y:97,w:44,h:18,conf:93,text:'Item:'},{x:62,y:97,w:36,h:18,conf:91,text:'OCR'},{x:102,y:97,w:74,h:18,conf:95,text:'Software'},{x:180,y:97,w:68,h:18,conf:94,text:'License'},
+    {x:14,y:117,w:40,h:18,conf:97,text:'Qty:'},{x:58,y:117,w:14,h:18,conf:98,text:'1'},
+    {x:14,y:137,w:54,h:18,conf:95,text:'Price:'},{x:72,y:137,w:132,h:18,conf:93,text:'$1,234.56'},
+    {x:14,y:169,w:64,h:20,conf:99,text:'TOTAL:'},{x:82,y:169,w:132,h:20,conf:99,text:'$1,234.56'},{x:218,y:169,w:66,h:20,conf:97,text:'(USD)'},
+  ];
+  let detMode='lines', detCanvas=null, detGrayData=null, detW=0, detH=0;
+  window.detSetMode = function(m) {
+    detMode=m;
+    document.getElementById('det-lines-btn').classList.toggle('on',m==='lines');
+    document.getElementById('det-words-btn').classList.toggle('on',m==='words');
+    detUpdate();
+  };
+  window.detUpdate = function() {
+    if(!detCanvas) return;
+    const minConf=+document.getElementById('det-conf').value;
+    document.getElementById('det-lbl').textContent=minConf;
+    const ctx=detCanvas.getContext('2d');
+    putGray(detCanvas,detGrayData,detW,detH);
+    const boxes=detMode==='lines'?LINE_BOXES:WORD_BOXES;
+    const shown=boxes.filter(b=>b.conf>=minConf);
+    ctx.lineWidth=1.5; ctx.font='9px -apple-system,sans-serif';
+    shown.forEach(b=>{
+      const col=b.conf>=80?'#10b981':b.conf>=50?'#f59e0b':'#ef4444';
+      ctx.strokeStyle=col; ctx.strokeRect(b.x,b.y,b.w,b.h);
+      ctx.fillStyle=col+'33'; ctx.fillRect(b.x,b.y,b.w,b.h);
+      ctx.fillStyle=col; ctx.fillText(b.conf+'%',b.x+2,b.y+b.h-2);
+    });
+    document.getElementById('det-count-txt').textContent=shown.length+' / '+boxes.length+' boxes';
+  };
+
+  // ══════════════════════════════════════════════════
+  // SIM 3 — CNN FEATURES (Sobel)
+  // ══════════════════════════════════════════════════
+  let cnnGray=null, cnnW=0, cnnH=0;
+  function sobelGx(gray,w,h){const out=new Float32Array(gray.length);for(let y=1;y<h-1;y++) for(let x=1;x<w-1;x++){out[y*w+x]=(-gray[(y-1)*w+(x-1)]+gray[(y-1)*w+(x+1)]-2*gray[y*w+(x-1)]+2*gray[y*w+(x+1)]-gray[(y+1)*w+(x-1)]+gray[(y+1)*w+(x+1)]);}return out;}
+  function sobelGy(gray,w,h){const out=new Float32Array(gray.length);for(let y=1;y<h-1;y++) for(let x=1;x<w-1;x++){out[y*w+x]=(gray[(y-1)*w+(x-1)]+2*gray[(y-1)*w+x]+gray[(y-1)*w+(x+1)]-gray[(y+1)*w+(x-1)]-2*gray[(y+1)*w+x]-gray[(y+1)*w+(x+1)]);}return out;}
+  function floatToGray(f,amp){const out=new Uint8ClampedArray(f.length);for(let i=0;i<f.length;i++)out[i]=Math.min(255,Math.abs(f[i])*amp);return out;}
+  function magToGray(gx,gy,amp){const out=new Uint8ClampedArray(gx.length);for(let i=0;i<gx.length;i++)out[i]=Math.min(255,Math.sqrt(gx[i]*gx[i]+gy[i]*gy[i])*amp);return out;}
+  window.cnnUpdate = function() {
+    if(!cnnGray) return;
+    const amp=+document.getElementById('cnn-amp').value/10;
+    document.getElementById('cnn-lbl').textContent=(amp).toFixed(1);
+    const gx=sobelGx(cnnGray,cnnW,cnnH), gy=sobelGy(cnnGray,cnnW,cnnH);
+    putGray(document.getElementById('cnn-gx'),floatToGray(gx,amp),cnnW,cnnH);
+    putGray(document.getElementById('cnn-mag'),magToGray(gx,gy,amp),cnnW,cnnH);
+  };
+
+  // ══════════════════════════════════════════════════
+  // SIM 4 — LSTM AMBIGUITY
+  // ══════════════════════════════════════════════════
+  let lstmResolved=false;
+  const RAW_HTML = 'The <span class="ctx-ambig" title="l or 1 or I?">pr|ce</span> is $<span class="ctx-ambig" title="l or 1?">|</span>,234.56 on <span class="ctx-ambig" title="O or 0?">0</span>ct <span class="ctx-ambig" title="0 or O?">O</span>1';
+  const RESOLVED_HTML = 'The <span class="ctx-resolved">price</span> is $<span class="ctx-resolved">1</span>,234.56 on <span class="ctx-resolved">Oct</span> <span class="ctx-resolved">01</span>';
+  window.lstmToggle = function() {
+    lstmResolved=!lstmResolved;
+    document.getElementById('lstm-text').innerHTML=lstmResolved?RESOLVED_HTML:RAW_HTML;
+    const btn=document.getElementById('lstm-btn');
+    btn.textContent=lstmResolved?'Show Raw OCR Output':'Resolve with BiLSTM Context';
+    btn.classList.toggle('on',!lstmResolved);
+  };
+
+  // ══════════════════════════════════════════════════
+  // SIM 5 — POST-PROCESSING
+  // ══════════════════════════════════════════════════
+  const PP2_ORIG = `lnvoice #lNV-2O26-OO1\nDate: 2O26-O5-3O\nC1ient: Gun Thronon\nltem: OCR Software License\nPrice: $l,234.56\nTOTAL: $l,234.56  (USD)`;
+  function pp2GetText(){return document.getElementById('pp2-text').innerText;}
+  window.pp2Reset = function(){document.getElementById('pp2-text').innerText=PP2_ORIG;pp2SetStatus('Reset to original OCR output','var(--text-muted)');}
+  window.pp2Detect = function() {
+    const t=pp2GetText();
+    // Highlight suspected l/1 confusions and O/0 confusions
+    let h=t.replace(/&/g,'&amp;').replace(/</g,'&lt;');
+    // l at start of word that should be uppercase I
+    h=h.replace(/\bl([A-Z])/g,'<span class="pp-err">l</span>$1');
+    // l before N (lNV = INV)
+    h=h.replace(/\bl([A-Z0-9])/g,'<span class="pp-err">l</span>$1');
+    // O in numeric contexts (2O26 → 2026)
+    h=h.replace(/([0-9])O([0-9])/g,'$1<span class="pp-err">O</span>$2');
+    h=h.replace(/([0-9])O([0-9])/g,'$1<span class="pp-err">O</span>$2');
+    // OO at end
+    h=h.replace(/O([0-9])/g,'<span class="pp-err">O</span>$1');
+    h=h.replace(/([0-9])O/g,'$1<span class="pp-err">O</span>');
+    // C1ient → Client
+    h=h.replace(/C1/g,'C<span class="pp-err">1</span>');
+    // $l → $1
+    h=h.replace(/\$l/g,'$<span class="pp-err">l</span>');
+    document.getElementById('pp2-text').innerHTML=h;
+    pp2SetStatus('Errors highlighted in red — '+([...h.matchAll(/pp-err/g)].length)+' suspected issues','var(--red)');
+  };
+  window.pp2FixL = function() {
+    let t=pp2GetText();
+    // l at word start where uppercase expected
+    t=t.replace(/\blNV/g,'INV'); t=t.replace(/\bltem/g,'Item'); t=t.replace(/\blnvoice/g,'Invoice');
+    // $l in amount context
+    t=t.replace(/\$l,/g,'$1,');
+    let h=t.replace(/&/g,'&amp;').replace(/</g,'&lt;');
+    h=h.replace(/(\$1,[\d.]+|Invoice|Item|INV)/g,'<span class="pp-fix">$1</span>');
+    document.getElementById('pp2-text').innerHTML=h;
+    pp2SetStatus('Fixed l → 1/I in word-start and amount contexts (green)','var(--green)');
+  };
+  window.pp2FixO = function() {
+    let t=pp2GetText();
+    // O between digits → 0
+    t=t.replace(/([0-9])O([0-9])/g,'$10$2'); t=t.replace(/([0-9])O([0-9])/g,'$10$2');
+    t=t.replace(/O([0-9])/g,'0$1'); t=t.replace(/([0-9])O([^a-zA-Z])/g,'$10$2');
+    t=t.replace(/OO1/g,'001'); t=t.replace(/-O/g,'-0');
+    let h=t.replace(/&/g,'&amp;').replace(/</g,'&lt;');
+    h=h.replace(/(20[0-9][0-9]-[0-9][0-9]-[0-9][0-9]|00[0-9])/g,'<span class="pp-fix">$1</span>');
+    document.getElementById('pp2-text').innerHTML=h;
+    pp2SetStatus('Fixed O → 0 in numeric contexts (green)','var(--green)');
+  };
+  window.pp2Validate = function() {
+    const t=pp2GetText();
+    const dateOk=/\d{4}-\d{2}-\d{2}/.test(t);
+    const amountOk=/\$[\d,]+\.\d{2}/.test(t);
+    const invoiceOk=/Invoice #[A-Z]/.test(t)||/lnvoice/.test(t)===false;
+    const issues=[];
+    if(!dateOk) issues.push('no valid date (YYYY-MM-DD)');
+    if(!amountOk) issues.push('no valid amount ($X,XXX.XX)');
+    if(/\blnvoice\b/.test(t)) issues.push('"lnvoice" — likely "Invoice" (l→I)');
+    if(/[0-9]O[0-9]|O[0-9][0-9]/.test(t)) issues.push('O/0 confusion in numbers');
+    const color=issues.length===0?'var(--green)':'var(--yellow)';
+    const msg=issues.length===0?'All fields valid — ready for export':'Issues found: '+issues.join(' · ');
+    pp2SetStatus(msg,color);
+  };
+  function pp2SetStatus(msg,col){const el=document.getElementById('pp2-status');el.innerHTML='<span style="color:'+col+'">'+msg+'</span>';}
+
+  // ══════════════════════════════════════════════════
+  // INIT
+  // ══════════════════════════════════════════════════
+  function init() {
+    // Sim 1: preprocessing
+    ppLoadSample();
+
+    // Sim 2: detection — draw grayscale invoice on det-canvas
+    detCanvas=document.getElementById('det-canvas');
+    const tmp=document.createElement('canvas'); drawInvoice(tmp);
+    detGrayData=toGray(tmp); detW=tmp.width; detH=tmp.height;
+    detUpdate();
+
+    // Sim 3: CNN features — draw grayscale invoice on cnn-orig
+    const cnnOrigCanvas=document.getElementById('cnn-orig');
+    const tmp2=document.createElement('canvas'); drawInvoice(tmp2);
+    cnnGray=toGray(tmp2); cnnW=tmp2.width; cnnH=tmp2.height;
+    putGray(cnnOrigCanvas,cnnGray,cnnW,cnnH);
+    cnnUpdate();
+
+    // Sim 4: LSTM
+    document.getElementById('lstm-text').innerHTML=RAW_HTML;
+
+    // Sim 5: post-proc (already set via HTML)
+  }
+
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',init);
+  else init();
+})();
+</script>
+</body>
+</html>

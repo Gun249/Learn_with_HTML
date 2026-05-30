@@ -1,0 +1,966 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Learn: Proxy &amp; DMZ — Network Architecture</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0f1117; --surface: #1a1d27; --surface2: #252836; --border: #2e3147;
+      --text: #e2e8f0; --text-muted: #8892a4; --accent: #6366f1; --accent2: #818cf8;
+      --green: #10b981; --yellow: #f59e0b; --red: #ef4444; --blue: #3b82f6;
+      --orange: #f97316; --code-bg: #0d0f17; --radius: 8px;
+      --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --mono: "Fira Code", "Cascadia Code", Consolas, monospace;
+    }
+    body { font-family: var(--font); background: var(--bg); color: var(--text); line-height: 1.7; display: flex; min-height: 100vh; }
+
+    /* NAV */
+    nav { width: 230px; min-width: 230px; background: var(--surface); border-right: 1px solid var(--border); padding: 28px 16px; position: sticky; top: 0; height: 100vh; overflow-y: auto; }
+    nav .logo { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.12em; color: var(--accent); margin-bottom: 20px; display: block; }
+    nav h2 { font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted); margin-bottom: 8px; margin-top: 18px; }
+    nav ol { list-style: none; counter-reset: toc; }
+    nav ol li { counter-increment: toc; }
+    nav ol li a { display: block; padding: 5px 8px; color: var(--text-muted); text-decoration: none; font-size: 12.5px; border-radius: 4px; transition: all 0.15s; }
+    nav ol li a::before { content: counter(toc) ". "; color: var(--accent2); font-weight: 700; font-size: 11px; }
+    nav ol li a:hover { color: var(--text); background: var(--surface2); }
+    nav .sim-links { list-style: none; padding: 0; }
+    nav .sim-links li a { display: block; padding: 4px 8px; color: var(--text-muted); text-decoration: none; font-size: 11.5px; border-radius: 4px; transition: all 0.15s; }
+    nav .sim-links li a::before { content: "▶ "; color: var(--green); font-size: 9px; }
+    nav .sim-links li a:hover { color: var(--green); background: var(--surface2); }
+
+    /* MAIN */
+    main { flex: 1; max-width: 940px; padding: 52px 60px; overflow-x: hidden; }
+
+    /* HEADER */
+    header { margin-bottom: 52px; border-bottom: 1px solid var(--border); padding-bottom: 36px; }
+    header .tag { display: inline-block; background: var(--accent); color: white; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; padding: 3px 12px; border-radius: 20px; margin-bottom: 14px; }
+    header h1 { font-size: 44px; font-weight: 900; line-height: 1.15; margin-bottom: 6px; background: linear-gradient(135deg, #e2e8f0 0%, #818cf8 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    header .subtitle { font-size: 18px; color: var(--text-muted); margin-bottom: 10px; }
+    header .meta { font-size: 12px; color: var(--text-muted); margin-bottom: 18px; }
+    header .meta span { margin-right: 16px; }
+    header .essence { padding: 18px 22px; background: var(--surface); border-left: 3px solid var(--accent); border-radius: 0 var(--radius) var(--radius) 0; font-size: 17px; font-style: italic; color: var(--accent2); line-height: 1.5; }
+
+    /* SECTIONS */
+    section { margin-bottom: 60px; }
+    section h2 { font-size: 26px; font-weight: 800; margin-bottom: 22px; padding-bottom: 12px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 12px; }
+    section h2 .num { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; background: var(--accent); color: white; font-size: 13px; font-weight: 800; border-radius: 50%; flex-shrink: 0; }
+    section h3 { font-size: 16px; font-weight: 700; margin: 28px 0 10px; color: var(--accent2); }
+    section p { margin-bottom: 14px; }
+    section ul, section ol { padding-left: 22px; margin-bottom: 14px; }
+    section li { margin-bottom: 7px; }
+    strong { color: var(--text); }
+
+    /* CODE */
+    pre { background: var(--code-bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; overflow-x: auto; margin: 16px 0; font-family: var(--mono); font-size: 12.5px; line-height: 1.65; }
+    code { font-family: var(--mono); font-size: 13px; }
+    :not(pre) > code { background: var(--surface2); padding: 2px 6px; border-radius: 4px; color: var(--accent2); font-size: 12.5px; }
+    .kw { color: #c678dd; } .fn { color: #61afef; } .str { color: #98c379; } .cm { color: #5c6370; font-style: italic; } .val { color: #d19a66; }
+
+    /* TABLES */
+    table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 13.5px; }
+    th { background: var(--surface2); padding: 10px 14px; text-align: left; font-weight: 700; border: 1px solid var(--border); color: var(--accent2); font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; }
+    td { padding: 10px 14px; border: 1px solid var(--border); vertical-align: top; }
+    tr:nth-child(even) td { background: var(--surface); }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 700; }
+    .badge-green { background: #0f2a1e; color: var(--green); border: 1px solid var(--green); }
+    .badge-yellow { background: #2a2010; color: var(--yellow); border: 1px solid var(--yellow); }
+    .badge-red { background: #2a1010; color: var(--red); border: 1px solid var(--red); }
+    .badge-orange { background: #2a1800; color: var(--orange); border: 1px solid var(--orange); }
+
+    /* CALLOUTS */
+    .callout { padding: 16px 20px; border-radius: var(--radius); margin: 16px 0; border-left: 4px solid; }
+    .callout.info { background: #1e2a4a; border-color: var(--blue); }
+    .callout.warn { background: #2a2010; border-color: var(--yellow); }
+    .callout.tip  { background: #0f2a1e; border-color: var(--green); }
+    .callout.err  { background: #2a1010; border-color: var(--red); }
+    .callout .label { display: inline-block; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 6px; padding: 2px 8px; border-radius: 10px; }
+    .callout.info .label { background: var(--blue); color: white; }
+    .callout.warn .label { background: var(--yellow); color: #111; }
+    .callout.tip .label  { background: var(--green); color: #111; }
+    .callout.err .label  { background: var(--red); color: white; }
+
+    /* CONCEPT CARDS */
+    .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; margin: 20px 0; }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px 20px; transition: border-color 0.2s; }
+    .card:hover { border-color: var(--accent); }
+    .card h4 { font-size: 14.5px; font-weight: 700; margin-bottom: 8px; color: var(--accent2); }
+    .card p { font-size: 13px; color: var(--text-muted); margin: 0 0 8px; line-height: 1.5; }
+    .card .analogy { font-size: 12px; color: var(--green); font-style: italic; }
+
+    /* STEPS */
+    .steps { display: flex; flex-direction: column; gap: 0; }
+    .step { display: flex; flex-direction: column; padding: 20px 0; border-bottom: 1px solid var(--border); }
+    .step:last-child { border-bottom: none; }
+    .step-header { display: flex; gap: 20px; }
+    .step-num { display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; min-width: 36px; background: var(--surface2); border: 2px solid var(--accent); border-radius: 50%; font-weight: 800; font-size: 14px; color: var(--accent2); }
+    .step-content h4 { font-size: 15px; font-weight: 700; margin-bottom: 6px; color: var(--text); }
+    .step-content p { font-size: 13.5px; color: var(--text-muted); margin: 0; }
+
+    /* INLINE SIM BOX */
+    .ssb { margin-left: 56px; margin-top: 14px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; font-size: 13px; }
+    .ssb-title { background: var(--surface2); padding: 8px 14px; border-bottom: 1px solid var(--border); font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.09em; color: var(--green); display: flex; align-items: center; gap: 8px; }
+    .ssb-canvas-wrap { padding: 16px; border-bottom: 1px solid var(--border); background: #0d0f17; }
+    .ssb-canvas { display: block; width: 100%; border-radius: 4px; }
+    .ssb-btns { display: flex; gap: 6px; padding: 10px 14px; border-bottom: 1px solid var(--border); flex-wrap: wrap; align-items: center; }
+    .ssb-btn { background: var(--surface2); border: 1px solid var(--border); color: var(--text-muted); padding: 6px 14px; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer; font-family: var(--font); transition: all 0.15s; }
+    .ssb-btn:hover { border-color: var(--accent); color: var(--accent2); }
+    .ssb-btn.on { background: var(--accent); border-color: var(--accent); color: white; }
+    .ssb-btn.red { background: #2a1010; border-color: var(--red); color: var(--red); }
+    .ssb-btn.red:hover { background: var(--red); color: white; }
+    .ssb-btn.green { background: #0f2a1e; border-color: var(--green); color: var(--green); }
+    .ssb-btn.green:hover { background: var(--green); color: #111; }
+    .ssb-status { padding: 10px 14px; font-size: 12px; min-height: 36px; display: flex; align-items: center; gap: 8px; }
+
+    /* CHEAT SHEET */
+    .cheatsheet { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+    .cheatsheet-header { background: var(--surface2); padding: 12px 20px; font-weight: 800; font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent2); border-bottom: 1px solid var(--border); }
+    .cheatsheet-row { display: flex; align-items: baseline; padding: 11px 20px; border-bottom: 1px solid var(--border); gap: 16px; }
+    .cheatsheet-row:last-child { border-bottom: none; }
+    .cheatsheet-key { font-family: var(--mono); font-size: 12.5px; color: var(--accent2); min-width: 180px; flex-shrink: 0; }
+    .cheatsheet-val { font-size: 13px; color: var(--text-muted); }
+
+    /* NEXT */
+    .next-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin: 18px 0; }
+    .next-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; transition: border-color 0.2s; }
+    .next-card:hover { border-color: var(--accent); }
+    .next-card .icon { font-size: 26px; margin-bottom: 10px; }
+    .next-card h4 { font-size: 14px; font-weight: 700; margin-bottom: 5px; }
+    .next-card p { font-size: 12px; color: var(--text-muted); margin: 0; line-height: 1.5; }
+
+    /* SOURCES */
+    .sources { border-top: 1px solid var(--border); padding-top: 28px; margin-top: 52px; }
+    .sources h2 { font-size: 15px; color: var(--text-muted); margin-bottom: 14px; }
+    .sources ul { list-style: none; padding: 0; }
+    .sources li { margin-bottom: 6px; }
+    .sources a { color: var(--accent2); font-size: 12.5px; text-decoration: none; word-break: break-all; }
+    .sources a:hover { text-decoration: underline; }
+
+    @media print { nav { display: none; } body { background: white; color: black; } }
+    @media (max-width: 800px) { nav { display: none; } main { padding: 24px 20px; } header h1 { font-size: 30px; } .next-grid { grid-template-columns: 1fr; } .cards { grid-template-columns: 1fr; } .ssb { margin-left: 0; } }
+  </style>
+</head>
+<body>
+
+<nav>
+  <span class="logo">Deep Dive</span>
+  <h2>Contents</h2>
+  <ol>
+    <li><a href="#why">Why It Matters</a></li>
+    <li><a href="#concepts">Core Concepts</a></li>
+    <li><a href="#how">How It Works</a></li>
+    <li><a href="#examples">Examples</a></li>
+    <li><a href="#mistakes">Common Mistakes</a></li>
+    <li><a href="#cheatsheet">Cheat Sheet</a></li>
+    <li><a href="#next">What to Learn Next</a></li>
+  </ol>
+  <h2>Simulations</h2>
+  <ul class="sim-links">
+    <li><a href="#sim-topology">Network Packet Flow</a></li>
+    <li><a href="#sim-proxy">Proxy Direction</a></li>
+  </ul>
+</nav>
+
+<main>
+  <header>
+    <span class="tag">Deep Dive · Verified May 2026</span>
+    <h1>Proxy &amp; DMZ</h1>
+    <div class="subtitle">Network Architecture &amp; Security Zones</div>
+    <div class="meta"><span>Verified: May 2026</span><span>8 sources</span><span>2 interactive simulations</span></div>
+    <div class="essence">
+      A <strong>Proxy</strong> is a middleman that intercepts network traffic on behalf of a client or server. A <strong>DMZ</strong> is a buffer network zone that isolates public-facing services from your private internal network — so that even if attackers breach the DMZ, your sensitive data stays protected.
+    </div>
+  </header>
+
+  <!-- SECTION 2 -->
+  <section id="why">
+    <h2><span class="num">2</span> Why It Matters</h2>
+    <p>Every company that exposes any service to the internet (a website, email server, API, or VPN endpoint) faces a fundamental problem: <strong>how do you let the public reach your services without letting them reach your private data?</strong> Proxy + DMZ is the classic answer, used by every organization from small startups to banks and governments.</p>
+
+    <h3>Real-World Use Cases</h3>
+    <ul>
+      <li><strong>Company website</strong> — Web server lives in DMZ. Attackers can deface the website but can't reach the HR database on the internal network.</li>
+      <li><strong>Corporate internet access</strong> — Forward proxy filters what employees can browse, logs traffic for compliance, blocks malware downloads.</li>
+      <li><strong>E-commerce</strong> — Reverse proxy (nginx/Cloudflare) hides backend servers, absorbs DDoS, terminates TLS, load-balances across app servers.</li>
+      <li><strong>Email gateway</strong> — Mail server in DMZ receives external email, scans for spam/malware, then relays clean mail to internal mail server.</li>
+      <li><strong>API gateway</strong> — Reverse proxy in DMZ enforces authentication, rate limiting, and request validation before requests reach internal microservices.</li>
+      <li><strong>Compliance</strong> — HIPAA, PCI-DSS, and ISO 27001 all require network segmentation. DMZ architecture is the standard way to satisfy this.</li>
+    </ul>
+
+    <div class="callout info">
+      <span class="label">2026 Context</span>
+      DMZ and proxy remain core patterns in 2026. Modern implementations layer in WAFs, API gateways, service meshes, and Zero Trust controls — but the underlying concept of "untrusted zone / buffer zone / trusted zone" hasn't changed since the 1990s. Cloud environments (AWS, Azure, GCP) implement DMZ via VPCs, subnets, security groups, and NACLs.
+    </div>
+  </section>
+
+  <!-- SECTION 3 -->
+  <section id="concepts">
+    <h2><span class="num">3</span> Core Concepts</h2>
+    <div class="cards">
+      <div class="card">
+        <h4>Forward Proxy</h4>
+        <p>Sits between <strong>clients and the internet</strong>. The client sends all requests through the proxy. The internet sees the proxy's IP, not the client's. Used for: content filtering, anonymity, caching, bandwidth control.</p>
+        <div class="analogy">Analogy: A librarian who fetches books for you. The bookstore only sees the librarian, not you.</div>
+      </div>
+      <div class="card">
+        <h4>Reverse Proxy</h4>
+        <p>Sits between <strong>the internet and backend servers</strong>. Clients hit the proxy, never the real servers. Used for: load balancing, TLS termination, DDoS protection, hiding server topology, caching.</p>
+        <div class="analogy">Analogy: A hotel front desk. Guests interact with the desk, never directly with housekeeping, kitchen, or management.</div>
+      </div>
+      <div class="card">
+        <h4>DMZ (Demilitarized Zone)</h4>
+        <p>A network segment sandwiched between two firewalls. Public-facing services live here. Internet can reach the DMZ but cannot reach the internal network. Internal network can reach DMZ but DMZ cannot initiate connections to internal.</p>
+        <div class="analogy">Analogy: A building lobby. Visitors can enter the lobby, but a locked door with a guard blocks them from the offices.</div>
+      </div>
+      <div class="card">
+        <h4>Firewall</h4>
+        <p>Network device that filters traffic based on rules (IP, port, protocol, state). In a DMZ setup you need at least one (ideally two) firewalls: one facing internet, one facing internal network.</p>
+        <div class="analogy">Analogy: A border checkpoint that checks passports and stamps — lets some through, turns others away.</div>
+      </div>
+      <div class="card">
+        <h4>Bastion Host</h4>
+        <p>A hardened server in the DMZ with minimal services, used as the single entry point for admin access (SSH/RDP) to internal systems. Everything unnecessary is removed to minimize attack surface.</p>
+        <div class="analogy">Analogy: A drawbridge — the only way across the moat. You can audit and control exactly who crosses.</div>
+      </div>
+      <div class="card">
+        <h4>WAF (Web App Firewall)</h4>
+        <p>A special reverse proxy that inspects HTTP/HTTPS traffic for application-layer attacks: SQL injection, XSS, CSRF, LFI. Lives in the DMZ in front of web servers. Examples: ModSecurity, Cloudflare WAF, AWS WAF.</p>
+        <div class="analogy">Analogy: A metal detector at airport security — scans the contents, not just who's carrying them.</div>
+      </div>
+    </div>
+
+    <h3>Security Zone Model</h3>
+    <table>
+      <tr><th>Zone</th><th>Trust Level</th><th>What Lives Here</th><th>Who Can Connect In</th></tr>
+      <tr><td><strong>Internet</strong></td><td><span class="badge badge-red">Untrusted</span></td><td>Everyone / attackers</td><td>N/A (source zone)</td></tr>
+      <tr><td><strong>DMZ</strong></td><td><span class="badge badge-yellow">Semi-trusted</span></td><td>Web servers, proxies, mail gateways, DNS, VPN endpoints</td><td>Internet (filtered by FW1)</td></tr>
+      <tr><td><strong>Internal LAN</strong></td><td><span class="badge badge-green">Trusted</span></td><td>Databases, app servers, file servers, HR systems, employee PCs</td><td>DMZ (filtered by FW2), internal only</td></tr>
+      <tr><td><strong>Management VLAN</strong></td><td><span class="badge badge-green">Highly trusted</span></td><td>Firewalls, switches, monitoring, backup servers</td><td>Internal admins only, never from internet</td></tr>
+    </table>
+  </section>
+
+  <!-- SECTION 4 -->
+  <section id="how">
+    <h2><span class="num">4</span> How It Works — Step by Step</h2>
+
+    <div class="steps">
+      <!-- STEP 1 -->
+      <div class="step">
+        <div class="step-header">
+          <div class="step-num">1</div>
+          <div class="step-content">
+            <h4>Traffic Originates from Internet</h4>
+            <p>A user (or attacker) sends a request — HTTP, SMTP, DNS, SSH — destined for your organization's public IP address. Without a DMZ, this request would hit your production servers directly.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- STEP 2 -->
+      <div class="step">
+        <div class="step-header">
+          <div class="step-num">2</div>
+          <div class="step-content">
+            <h4>Outer Firewall (FW1) — First Gate</h4>
+            <p>The first firewall receives all inbound internet traffic. It only allows traffic on explicitly permitted ports to the DMZ:<br>
+            TCP 80/443 → web server, TCP 25 → mail server, UDP 53 → DNS.<br>
+            Everything else is dropped and logged. FW1 performs stateful packet inspection — it tracks connection state, not just individual packets.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- STEP 3 + SIM 1 -->
+      <div class="step">
+        <div class="step-header">
+          <div class="step-num">3</div>
+          <div class="step-content">
+            <h4>DMZ Zone — Public Services Buffer</h4>
+            <p>Permitted traffic enters the DMZ. Services here: web servers, reverse proxy, mail gateway, DNS resolver, VPN concentrator. These servers serve public requests but have <strong>no direct access to the internal network</strong>. They can only forward processed results inward through FW2.</p>
+          </div>
+        </div>
+        <div class="ssb" id="sim-topology">
+          <div class="ssb-title">▶ Try It: Network Packet Flow Simulation</div>
+          <div class="ssb-btns">
+            <button class="ssb-btn green on" onclick="simRun('http')">HTTP Request (allowed)</button>
+            <button class="ssb-btn on" onclick="simRun('proxy')">Via Proxy → Internal</button>
+            <button class="ssb-btn red" onclick="simRun('attack')">Direct Attack (blocked)</button>
+            <button class="ssb-btn" onclick="simReset()">Reset</button>
+          </div>
+          <div class="ssb-canvas-wrap">
+            <canvas id="topo-canvas" class="ssb-canvas" height="270"></canvas>
+          </div>
+          <div class="ssb-status" id="topo-status">
+            <span style="color:var(--text-muted)">Click a scenario above to animate packet flow through the network zones</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- STEP 4 + SIM 2 -->
+      <div class="step">
+        <div class="step-header">
+          <div class="step-num">4</div>
+          <div class="step-content">
+            <h4>Proxy — The Intelligent Middleman</h4>
+            <p><strong>Forward proxy</strong> (corporate): employees' traffic routes through proxy → internet. The internet sees proxy IP, not employee IP. Enables: content filtering, caching, audit logging, bandwidth control.<br>
+            <strong>Reverse proxy</strong> (in DMZ): internet traffic hits proxy first → proxy routes to correct backend server. Enables: load balancing, TLS termination, WAF, hiding real server IPs, A/B routing.</p>
+          </div>
+        </div>
+        <div class="ssb" id="sim-proxy">
+          <div class="ssb-title">▶ Try It: Forward vs Reverse Proxy</div>
+          <div class="ssb-btns">
+            <button class="ssb-btn on" id="fwd-btn" onclick="proxySetMode('forward')">Forward Proxy (client-side)</button>
+            <button class="ssb-btn" id="rev-btn" onclick="proxySetMode('reverse')">Reverse Proxy (server-side)</button>
+            <button class="ssb-btn" onclick="proxyAnimate()">Animate Request</button>
+            <button class="ssb-btn" onclick="proxyReset()">Reset</button>
+          </div>
+          <div class="ssb-canvas-wrap">
+            <canvas id="proxy-canvas" class="ssb-canvas" height="200"></canvas>
+          </div>
+          <div class="ssb-status" id="proxy-status">
+            <span style="color:var(--text-muted)">Select proxy type then click Animate Request</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- STEP 5 -->
+      <div class="step">
+        <div class="step-header">
+          <div class="step-num">5</div>
+          <div class="step-content">
+            <h4>Inner Firewall (FW2) — Second Gate</h4>
+            <p>The inner firewall is the last line of defense before the private network. It only allows traffic from specific DMZ servers to specific internal servers on specific ports. Example rule: <code>allow from proxy.dmz:443 to appserver.internal:8080</code>. All other traffic — including anything originating from the DMZ directly — is denied. Even if an attacker fully compromises a DMZ server, FW2 stops lateral movement into the internal network.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- STEP 6 -->
+      <div class="step">
+        <div class="step-header">
+          <div class="step-num">6</div>
+          <div class="step-content">
+            <h4>Internal Network — Protected Core</h4>
+            <p>Databases, application servers, file servers, ERP/HR systems, employee workstations. These systems <strong>never appear in DNS</strong>, have private RFC 1918 IP addresses, and can only be reached through FW2. Outbound requests from internal network to DMZ or internet are also controlled — employees might access internet through the forward proxy in the DMZ.</p>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /steps -->
+  </section>
+
+  <!-- SECTION 5 -->
+  <section id="examples">
+    <h2><span class="num">5</span> Examples</h2>
+
+    <h3>Example 1 — nginx as Reverse Proxy in DMZ</h3>
+    <pre><code><span class="cm"># /etc/nginx/sites-available/reverse-proxy.conf</span>
+<span class="cm"># nginx runs in DMZ (192.168.1.10)</span>
+<span class="cm"># App server is on internal network (10.0.0.20)</span>
+
+<span class="kw">upstream</span> <span class="fn">backend</span> {
+    server <span class="val">10.0.0.20:8080</span>;   <span class="cm"># internal app server</span>
+    server <span class="val">10.0.0.21:8080</span>;   <span class="cm"># failover</span>
+    keepalive <span class="val">32</span>;
+}
+
+server {
+    listen <span class="val">443 ssl</span>;
+    server_name  example.com;
+
+    <span class="cm"># TLS terminates HERE at DMZ — backend is plain HTTP internally</span>
+    ssl_certificate     /etc/ssl/certs/example.pem;
+    ssl_certificate_key /etc/ssl/private/example.key;
+
+    <span class="cm"># Security headers</span>
+    add_header X-Frame-Options DENY;
+    add_header X-Content-Type-Options nosniff;
+    add_header Strict-Transport-Security "max-age=31536000";
+
+    location / {
+        proxy_pass         http://backend;
+        proxy_set_header   Host $host;
+        proxy_set_header   X-Real-IP $remote_addr;
+        proxy_set_header   X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_hide_header  X-Powered-By;    <span class="cm"># hide stack info</span>
+    }
+}</code></pre>
+
+    <h3>Example 2 — iptables Rules for Dual-Firewall DMZ</h3>
+    <pre><code><span class="cm">#!/bin/bash
+# FW1 — Outer firewall (internet-facing)
+# eth0 = internet, eth1 = DMZ</span>
+
+<span class="cm"># Default policy: DROP everything</span>
+iptables -P INPUT DROP
+iptables -P FORWARD DROP
+iptables -P OUTPUT DROP
+
+<span class="cm"># Allow established/related connections back</span>
+iptables -A FORWARD -m state --state ESTABLISHED,RELATED -j ACCEPT
+
+<span class="cm"># Internet → DMZ: only HTTP/HTTPS/SMTP</span>
+iptables -A FORWARD -i eth0 -o eth1 -p tcp --dport 80  -j ACCEPT
+iptables -A FORWARD -i eth0 -o eth1 -p tcp --dport 443 -j ACCEPT
+iptables -A FORWARD -i eth0 -o eth1 -p tcp --dport 25  -j ACCEPT
+
+<span class="cm"># BLOCK: Internet → Internal (never allow direct)</span>
+iptables -A FORWARD -i eth0 -o eth2 -j DROP
+
+<span class="cm">---
+# FW2 — Inner firewall (DMZ-facing)
+# eth0 = DMZ, eth1 = internal</span>
+
+<span class="cm"># Only nginx proxy (192.168.1.10) can reach app server port 8080</span>
+iptables -A FORWARD -i eth0 -o eth1 \
+  -s 192.168.1.10 -d 10.0.0.20 \
+  -p tcp --dport 8080 -j ACCEPT
+
+<span class="cm"># Only mail relay (192.168.1.20) can reach internal SMTP</span>
+iptables -A FORWARD -i eth0 -o eth1 \
+  -s 192.168.1.20 -d 10.0.0.30 \
+  -p tcp --dport 25 -j ACCEPT
+
+<span class="cm"># Everything else from DMZ to internal: DROP</span>
+iptables -A FORWARD -i eth0 -o eth1 -j DROP</code></pre>
+
+    <h3>Example 3 — Squid Forward Proxy (Corporate Internet Control)</h3>
+    <pre><code><span class="cm"># /etc/squid/squid.conf
+# Squid runs in DMZ. Employees route internet traffic through it.</span>
+
+http_port <span class="val">3128</span>
+
+<span class="cm"># ACL: only allow internal network to use proxy</span>
+acl internal_net src <span class="val">10.0.0.0/8</span>
+acl internal_net src <span class="val">192.168.0.0/16</span>
+
+<span class="cm"># Block social media during work hours</span>
+acl work_hours time MTWHF <span class="val">08:00-18:00</span>
+acl social_media dstdomain <span class="val">.facebook.com .tiktok.com .instagram.com</span>
+http_access deny social_media work_hours
+
+<span class="cm"># Block known malware domains</span>
+acl malware_domains dstdomain "/etc/squid/malware-domains.txt"
+http_access deny malware_domains
+
+<span class="cm"># Allow internal network, deny everything else</span>
+http_access allow internal_net
+http_access deny all
+
+<span class="cm"># Log all access for compliance</span>
+access_log /var/log/squid/access.log combined</code></pre>
+
+    <h3>Example 4 — AWS VPC DMZ Pattern (Cloud)</h3>
+    <pre><code><span class="cm"># AWS VPC equivalent of DMZ using Terraform</span>
+<span class="cm"># Public subnet = DMZ, Private subnet = Internal</span>
+
+resource <span class="str">"aws_vpc"</span> <span class="str">"main"</span> {
+  cidr_block = <span class="str">"10.0.0.0/16"</span>
+}
+
+<span class="cm"># DMZ = public subnet (has internet gateway route)</span>
+resource <span class="str">"aws_subnet"</span> <span class="str">"dmz"</span> {
+  vpc_id            = aws_vpc.main.id
+  cidr_block        = <span class="str">"10.0.1.0/24"</span>
+  map_public_ip_on_launch = true
+}
+
+<span class="cm"># Internal = private subnet (no direct internet route)</span>
+resource <span class="str">"aws_subnet"</span> <span class="str">"internal"</span> {
+  vpc_id     = aws_vpc.main.id
+  cidr_block = <span class="str">"10.0.2.0/24"</span>
+}
+
+<span class="cm"># Security group = FW1 (DMZ servers: allow 80/443 from internet)</span>
+resource <span class="str">"aws_security_group"</span> <span class="str">"dmz_sg"</span> {
+  ingress { from_port=80  to_port=80  protocol="tcp" cidr_blocks=["0.0.0.0/0"] }
+  ingress { from_port=443 to_port=443 protocol="tcp" cidr_blocks=["0.0.0.0/0"] }
+  egress  { from_port=8080 to_port=8080 protocol="tcp" cidr_blocks=["10.0.2.0/24"] }
+}
+
+<span class="cm"># Security group = FW2 (internal servers: only from DMZ proxy)</span>
+resource <span class="str">"aws_security_group"</span> <span class="str">"internal_sg"</span> {
+  ingress { from_port=8080 to_port=8080 protocol="tcp"
+            security_groups=[aws_security_group.dmz_sg.id] }
+}</code></pre>
+  </section>
+
+  <!-- SECTION 6 -->
+  <section id="mistakes">
+    <h2><span class="num">6</span> Common Mistakes &amp; Misconceptions</h2>
+
+    <div class="callout err">
+      <span class="label">Mistake 1</span>
+      <strong>Firewall rules with "ANY" as destination</strong><br>
+      A rule like <code>allow from internet to ANY port 443</code> opens ALL hosts to HTTPS, not just the web server. <strong>Fix:</strong> Always specify exact source IP, destination IP, and port. Use a rule like <code>allow src 0.0.0.0/0 dst 192.168.1.10 port 443</code>.
+    </div>
+
+    <div class="callout err">
+      <span class="label">Mistake 2</span>
+      <strong>DMZ server can initiate connections to internal network</strong><br>
+      If an attacker compromises your DMZ web server, they can call out to your database on port 5432. Fix: FW2 must block ALL outbound connections from DMZ to internal unless explicitly needed. Use "default deny" on FW2 inbound from DMZ.
+    </div>
+
+    <div class="callout err">
+      <span class="label">Mistake 3</span>
+      <strong>Using HTTP (not HTTPS) on DMZ ↔ internal connections</strong><br>
+      Internal traffic is not automatically safe. Traffic inside the DMZ or between DMZ and internal can be sniffed if an attacker gets on the network. <strong>Fix:</strong> Enforce HTTPS/TLS everywhere, even on internal hops. Use mutual TLS (mTLS) for service-to-service.
+    </div>
+
+    <div class="callout warn">
+      <span class="label">Mistake 4</span>
+      <strong>Single firewall DMZ with misconfigured third interface</strong><br>
+      Single-firewall DMZ (three-legged) is cheaper but riskier — one compromised firewall means both DMZ and internal are exposed. If using single FW, ensure each interface has separate ACLs and the firewall OS is hardened and monitored.
+    </div>
+
+    <div class="callout warn">
+      <span class="label">Mistake 5</span>
+      <strong>No inspection or logging in the DMZ</strong><br>
+      "Set and forget" firewall rules with no IDS/IPS and no log review means attackers operate undetected. <strong>Fix:</strong> Deploy an IDS (Snort, Suricata) in the DMZ, ship all logs to a SIEM, and set alerts on unusual outbound connection attempts from DMZ servers.
+    </div>
+
+    <div class="callout info">
+      <span class="label">Misconception</span>
+      <strong>"Cloud doesn't need DMZ — security groups handle it"</strong><br>
+      Security groups ARE the firewall, but the architecture principle (public subnet / private subnet / strict inbound rules) is identical to DMZ. Calling it "public/private subnet" instead of "DMZ/internal" doesn't change the requirement for proper network segmentation.
+    </div>
+  </section>
+
+  <!-- SECTION 7 -->
+  <section id="cheatsheet">
+    <h2><span class="num">7</span> Cheat Sheet / Quick Reference</h2>
+
+    <h3>Common Ports in DMZ Firewall Rules</h3>
+    <table>
+      <tr><th>Port</th><th>Protocol</th><th>Service</th><th>Direction</th><th>Notes</th></tr>
+      <tr><td><code>80</code></td><td>TCP</td><td>HTTP</td><td>Internet → DMZ web</td><td>Should redirect to 443</td></tr>
+      <tr><td><code>443</code></td><td>TCP</td><td>HTTPS</td><td>Internet → DMZ proxy</td><td>TLS terminates at DMZ</td></tr>
+      <tr><td><code>25</code></td><td>TCP</td><td>SMTP</td><td>Internet → DMZ mail</td><td>Mail gateway only</td></tr>
+      <tr><td><code>53</code></td><td>UDP/TCP</td><td>DNS</td><td>Internet → DMZ DNS</td><td>External resolver only</td></tr>
+      <tr><td><code>22</code></td><td>TCP</td><td>SSH</td><td>Admin → Bastion</td><td>Restrict to known IPs</td></tr>
+      <tr><td><code>8080/8443</code></td><td>TCP</td><td>App server</td><td>DMZ proxy → Internal</td><td>Only from proxy IP</td></tr>
+      <tr><td><code>3306/5432</code></td><td>TCP</td><td>DB</td><td>Internal → Internal only</td><td>NEVER from DMZ</td></tr>
+    </table>
+
+    <h3>Architecture Patterns</h3>
+    <div class="cheatsheet">
+      <div class="cheatsheet-header">Proxy &amp; DMZ Quick Reference</div>
+      <div class="cheatsheet-row"><span class="cheatsheet-key">Single firewall DMZ</span><span class="cheatsheet-val">3 interfaces: internet / DMZ / internal. Cheaper, riskier — one FW compromise = game over.</span></div>
+      <div class="cheatsheet-row"><span class="cheatsheet-key">Dual firewall DMZ</span><span class="cheatsheet-val">2 firewalls, DMZ in between. Best practice. Attacker must breach both FWs to reach internal.</span></div>
+      <div class="cheatsheet-row"><span class="cheatsheet-key">Forward proxy</span><span class="cheatsheet-val">Client → Proxy → Internet. Hides client. Used for: filtering, caching, anonymity, compliance.</span></div>
+      <div class="cheatsheet-row"><span class="cheatsheet-key">Reverse proxy</span><span class="cheatsheet-val">Internet → Proxy → Servers. Hides servers. Used for: load balance, TLS, WAF, caching.</span></div>
+      <div class="cheatsheet-row"><span class="cheatsheet-key">Bastion host</span><span class="cheatsheet-val">Hardened single-purpose server in DMZ. Only entry point for SSH/RDP admin access. Minimal attack surface.</span></div>
+      <div class="cheatsheet-row"><span class="cheatsheet-key">Default deny</span><span class="cheatsheet-val">Block all traffic, explicitly allow only what's needed. Opposite of "default allow." Always use for FW2.</span></div>
+      <div class="cheatsheet-row"><span class="cheatsheet-key">Stateful inspection</span><span class="cheatsheet-val">Firewall tracks connection state — automatically allows reply packets without explicit return rules.</span></div>
+      <div class="cheatsheet-row"><span class="cheatsheet-key">NAT (Network Address Translation)</span><span class="cheatsheet-val">Maps public IP → private IP. Hides internal topology. FW1 does NAT for DMZ servers.</span></div>
+      <div class="cheatsheet-row"><span class="cheatsheet-key">RFC 1918 addresses</span><span class="cheatsheet-val">Private IP ranges: 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16. Never routable on internet.</span></div>
+      <div class="cheatsheet-row"><span class="cheatsheet-key">Cloud equivalent</span><span class="cheatsheet-val">Public subnet + Internet Gateway = DMZ. Private subnet + NAT Gateway = Internal. Security Groups = firewalls.</span></div>
+    </div>
+  </section>
+
+  <!-- SECTION 8 -->
+  <section id="next">
+    <h2><span class="num">8</span> What to Learn Next</h2>
+    <div class="next-grid">
+      <div class="next-card">
+        <div class="icon">🔐</div>
+        <h4>Zero Trust Architecture</h4>
+        <p>The modern evolution beyond DMZ: "never trust, always verify." Every request authenticated regardless of network zone. Replaces implicit internal trust with per-request authorization.</p>
+      </div>
+      <div class="next-card">
+        <div class="icon">🌐</div>
+        <h4>VPN &amp; Tunneling</h4>
+        <p>How remote workers securely access internal resources by creating an encrypted tunnel through the internet. WireGuard, OpenVPN, IPSec — and how VPN concentrators live in the DMZ.</p>
+      </div>
+      <div class="next-card">
+        <div class="icon">🛡️</div>
+        <h4>WAF &amp; IDS/IPS</h4>
+        <p>Web Application Firewalls inspect HTTP payloads for injection attacks. Intrusion Detection/Prevention Systems detect network-level attacks. Both live in the DMZ and complement firewall rules.</p>
+      </div>
+    </div>
+    <div class="callout tip">
+      <span class="label">Practice Exercise</span>
+      <strong>Design a DMZ for a small company right now:</strong><br>
+      Draw (pen and paper or diagrams.net): internet cloud → FW1 → DMZ box (put web server + mail server inside) → FW2 → internal box (put database + app server inside).<br>
+      Write 5 firewall rules for FW1 and 5 for FW2. What ports do you open? What do you block?<br>
+      Then check: can an attacker who compromises your web server reach the database? If yes, fix your FW2 rules.
+    </div>
+  </section>
+
+  <div class="sources">
+    <h2>Sources Used (Verified May 2026)</h2>
+    <ul>
+      <li><a href="https://www.fortinet.com/resources/cyberglossary/what-is-dmz">What Is a DMZ Network? — Fortinet</a></li>
+      <li><a href="https://devsecopsschool.com/blog/dmz/">DMZ Architecture 2026 Guide — DevSecOps School</a></li>
+      <li><a href="https://en.wikipedia.org/wiki/DMZ_(computing)">DMZ (computing) — Wikipedia</a></li>
+      <li><a href="https://www.techtarget.com/searchsecurity/definition/DMZ">What is a DMZ in Networking? — TechTarget</a></li>
+      <li><a href="https://www.cloudflare.com/learning/cdn/glossary/reverse-proxy/">What Is A Reverse Proxy? — Cloudflare</a></li>
+      <li><a href="https://www.strongdm.com/blog/difference-between-proxy-and-reverse-proxy">Forward vs Reverse Proxy — StrongDM</a></li>
+      <li><a href="https://www.jscape.com/blog/considerations-when-setting-up-your-dmz-s-reverse-proxy-and-firewall">DMZ Reverse Proxy &amp; Firewall Setup — JSCAPE</a></li>
+      <li><a href="https://www.baeldung.com/cs/public-dmz-network-architecture">Public DMZ Network Architecture — Baeldung</a></li>
+    </ul>
+  </div>
+</main>
+
+<script>
+(function() {
+  // ══════════════════════════════════════════════════
+  // SHARED DRAW UTILS
+  // ══════════════════════════════════════════════════
+  function roundRect(ctx, x, y, w, h, r, fill, stroke) {
+    ctx.beginPath();
+    ctx.moveTo(x+r, y);
+    ctx.lineTo(x+w-r, y); ctx.arcTo(x+w,y, x+w,y+r, r);
+    ctx.lineTo(x+w, y+h-r); ctx.arcTo(x+w,y+h, x+w-r,y+h, r);
+    ctx.lineTo(x+r, y+h); ctx.arcTo(x,y+h, x,y+h-r, r);
+    ctx.lineTo(x, y+r); ctx.arcTo(x,y, x+r,y, r);
+    ctx.closePath();
+    if (fill) { ctx.fillStyle=fill; ctx.fill(); }
+    if (stroke) { ctx.strokeStyle=stroke; ctx.lineWidth=1.5; ctx.stroke(); }
+  }
+  function label(ctx, text, x, y, color, size, bold) {
+    ctx.fillStyle = color||'#8892a4';
+    ctx.font = (bold?'bold ':'') + (size||11)+'px -apple-system,sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(text, x, y);
+  }
+  function node(ctx, x, y, r, fill, stroke, text, textY) {
+    ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2);
+    ctx.fillStyle=fill; ctx.fill();
+    ctx.strokeStyle=stroke; ctx.lineWidth=1.5; ctx.stroke();
+    if (text) label(ctx, text, x, textY||y+r+12, '#8892a4', 9);
+  }
+
+  // ══════════════════════════════════════════════════
+  // SIM 1 — NETWORK TOPOLOGY + PACKET FLOW
+  // ══════════════════════════════════════════════════
+  const TC = document.getElementById('topo-canvas');
+  const W = TC.offsetWidth || 820;
+  TC.width  = W;
+  TC.height = 270;
+  const CTX = TC.getContext('2d');
+
+  // Layout constants
+  const Z = {
+    inet:  {x:0,    w:130},
+    fw1:   {x:130,  w:42},
+    dmz:   {x:172,  w:240},
+    fw2:   {x:412,  w:42},
+    int:   {x:454,  w: W-454},
+  };
+  const NODES = {
+    client:   {x:65,  y:135},
+    fw1:      {x:151, y:135},
+    webSrv:   {x:265, y:60},
+    proxy:    {x:265, y:135},
+    mail:     {x:265, y:210},
+    fw2:      {x:433, y:135},
+    appSrv:   {x: W > 650 ? Z.int.x+70 : Z.int.x+50,  y:85},
+    db:       {x: W > 650 ? Z.int.x+70 : Z.int.x+50,  y:175},
+  };
+
+  function drawTopo(packetPos, packetColor, blocked) {
+    const ctx = CTX;
+    ctx.clearRect(0,0,TC.width,TC.height);
+
+    // Zone backgrounds
+    ctx.fillStyle='rgba(55,65,81,0.25)'; ctx.fillRect(Z.inet.x,0,Z.inet.w,TC.height);
+    ctx.fillStyle='rgba(239,68,68,0.2)'; ctx.fillRect(Z.fw1.x,0,Z.fw1.w,TC.height);
+    ctx.fillStyle='rgba(245,158,11,0.12)'; ctx.fillRect(Z.dmz.x,0,Z.dmz.w,TC.height);
+    ctx.fillStyle='rgba(239,68,68,0.2)'; ctx.fillRect(Z.fw2.x,0,Z.fw2.w,TC.height);
+    ctx.fillStyle='rgba(16,185,129,0.1)'; ctx.fillRect(Z.int.x,0,Z.int.w,TC.height);
+
+    // Zone labels
+    ctx.textAlign='center';
+    label(ctx,'INTERNET',  Z.inet.x+Z.inet.w/2,     18,'#6b7280',10,true);
+    label(ctx,'FW1',       Z.fw1.x+Z.fw1.w/2,       18,'#ef4444',10,true);
+    label(ctx,'DMZ',       Z.dmz.x+Z.dmz.w/2,       18,'#f59e0b',10,true);
+    label(ctx,'FW2',       Z.fw2.x+Z.fw2.w/2,       18,'#ef4444',10,true);
+    label(ctx,'INTERNAL',  Z.int.x+Z.int.w/2,        18,'#10b981',10,true);
+
+    // Connections (dashed lines)
+    ctx.setLineDash([4,3]); ctx.lineWidth=1; ctx.strokeStyle='#2e3147';
+    function line(x1,y1,x2,y2){ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();}
+    line(NODES.client.x,NODES.client.y,  NODES.fw1.x,NODES.fw1.y);
+    line(NODES.fw1.x,NODES.fw1.y,        NODES.webSrv.x,NODES.webSrv.y);
+    line(NODES.fw1.x,NODES.fw1.y,        NODES.proxy.x,NODES.proxy.y);
+    line(NODES.fw1.x,NODES.fw1.y,        NODES.mail.x,NODES.mail.y);
+    line(NODES.proxy.x,NODES.proxy.y,    NODES.fw2.x,NODES.fw2.y);
+    line(NODES.webSrv.x,NODES.webSrv.y,  NODES.fw2.x,NODES.fw2.y);
+    line(NODES.fw2.x,NODES.fw2.y,        NODES.appSrv.x,NODES.appSrv.y);
+    line(NODES.fw2.x,NODES.fw2.y,        NODES.db.x,NODES.db.y);
+    ctx.setLineDash([]);
+
+    // Nodes
+    node(ctx, NODES.client.x,  NODES.client.y,  14, '#252836','#6b7280',  'Client');
+    node(ctx, NODES.fw1.x,     NODES.fw1.y,     12, '#2a1010','#ef4444',  'FW1', NODES.fw1.y+22);
+    node(ctx, NODES.webSrv.x,  NODES.webSrv.y,  13, '#1e2040','#818cf8',  'Web Server');
+    node(ctx, NODES.proxy.x,   NODES.proxy.y,   13, '#2a1e00','#f59e0b',  'Proxy');
+    node(ctx, NODES.mail.x,    NODES.mail.y,     13, '#1e2040','#818cf8',  'Mail GW');
+    node(ctx, NODES.fw2.x,     NODES.fw2.y,     12, '#2a1010','#ef4444',  'FW2', NODES.fw2.y+22);
+    node(ctx, NODES.appSrv.x,  NODES.appSrv.y,  13, '#0f2a1e','#10b981',  'App Server');
+    node(ctx, NODES.db.x,      NODES.db.y,       13, '#0f2a1e','#10b981',  'Database');
+
+    // Draw packet
+    if (packetPos) {
+      ctx.beginPath();
+      ctx.arc(packetPos.x, packetPos.y, 8, 0, Math.PI*2);
+      ctx.fillStyle = packetColor || '#818cf8';
+      ctx.fill();
+      ctx.strokeStyle = 'white'; ctx.lineWidth=1.5; ctx.stroke();
+    }
+
+    // Draw BLOCKED X
+    if (blocked) {
+      const bx=NODES.fw2.x, by=NODES.fw2.y;
+      ctx.strokeStyle='#ef4444'; ctx.lineWidth=3;
+      ctx.beginPath(); ctx.moveTo(bx-16,by-16); ctx.lineTo(bx+16,by+16); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(bx+16,by-16); ctx.lineTo(bx-16,by+16); ctx.stroke();
+    }
+  }
+
+  // Animation state
+  let animId = null;
+  let simBlocked = false;
+
+  function lerp(a, b, t) { return { x: a.x+(b.x-a.x)*t, y: a.y+(b.y-a.y)*t }; }
+
+  const SCENARIOS = {
+    http: {
+      color: '#818cf8',
+      steps: [
+        {from:NODES.client,  to:NODES.fw1,    msg:'Client sends HTTP request → FW1 receives it'},
+        {from:NODES.fw1,     to:NODES.webSrv, msg:'FW1 allows port 443 to DMZ web server'},
+        {from:NODES.webSrv,  to:NODES.fw1,    msg:'Web server responds — reply travels back through FW1'},
+        {from:NODES.fw1,     to:NODES.client, msg:'Response delivered. Internal network never touched.'},
+      ],
+      blocked: false,
+      final: 'HTTP request served from DMZ web server. Internal network was never exposed.',
+    },
+    proxy: {
+      color: '#f59e0b',
+      steps: [
+        {from:NODES.client,  to:NODES.fw1,    msg:'Client sends request → FW1 receives it'},
+        {from:NODES.fw1,     to:NODES.proxy,  msg:'FW1 routes to DMZ proxy server'},
+        {from:NODES.proxy,   to:NODES.fw2,    msg:'Proxy forwards authenticated request → FW2'},
+        {from:NODES.fw2,     to:NODES.appSrv, msg:'FW2 allows proxy IP to reach app server'},
+        {from:NODES.appSrv,  to:NODES.proxy,  msg:'App server responds through FW2 back to proxy'},
+        {from:NODES.proxy,   to:NODES.client, msg:'Proxy returns response. App server IP never revealed.'},
+      ],
+      blocked: false,
+      final: 'Request proxied from DMZ to internal app server — client never sees internal IP.',
+    },
+    attack: {
+      color: '#ef4444',
+      steps: [
+        {from:NODES.client,  to:NODES.fw1,    msg:'Attacker probes for vulnerabilities → FW1 receives'},
+        {from:NODES.fw1,     to:NODES.webSrv, msg:'FW1 allows port 443 — attacker reaches web server'},
+        {from:NODES.webSrv,  to:NODES.fw2,    msg:'Attacker compromises web server, tries to reach database directly'},
+      ],
+      blocked: true,
+      final: 'BLOCKED by FW2. Web server has no rule to reach database. DMZ segmentation works.',
+    },
+  };
+
+  window.simRun = function(name) {
+    if (animId) { cancelAnimationFrame(animId); animId=null; }
+    simBlocked = false;
+    const sc = SCENARIOS[name];
+    const steps = sc.steps;
+    let stepIdx = 0;
+    let t = 0;
+    const SPEED = 0.02;
+    const STATUS = document.getElementById('topo-status');
+
+    function tick() {
+      if (stepIdx >= steps.length) {
+        drawTopo(steps[steps.length-1].to, sc.color, sc.blocked);
+        STATUS.innerHTML = '<span style="color:'+(sc.blocked?'var(--red)':'var(--green)')+'">'+sc.final+'</span>';
+        return;
+      }
+      const step = steps[stepIdx];
+      t += SPEED;
+      if (t >= 1) {
+        t = 0;
+        STATUS.innerHTML = '<span style="color:var(--text-muted)">→ '+steps[Math.min(stepIdx+1,steps.length-1)].msg+'</span>';
+        stepIdx++;
+      }
+      const pos = lerp(step.from, step.to, Math.min(t, 1));
+      drawTopo(pos, sc.color, false);
+      STATUS.innerHTML = '<span style="color:var(--accent2)">'+step.msg+'</span>';
+      animId = requestAnimationFrame(tick);
+    }
+    STATUS.innerHTML = '<span style="color:var(--accent2)">'+steps[0].msg+'</span>';
+    tick();
+  };
+
+  window.simReset = function() {
+    if (animId) { cancelAnimationFrame(animId); animId=null; }
+    drawTopo(null);
+    document.getElementById('topo-status').innerHTML = '<span style="color:var(--text-muted)">Click a scenario to animate packet flow</span>';
+  };
+
+  // ══════════════════════════════════════════════════
+  // SIM 2 — FORWARD vs REVERSE PROXY
+  // ══════════════════════════════════════════════════
+  const PC = document.getElementById('proxy-canvas');
+  const PW = PC.offsetWidth || 820;
+  PC.width  = PW;
+  PC.height = 200;
+  const PCTX = PC.getContext('2d');
+
+  let proxyMode = 'forward';
+  let proxyAnimId = null;
+
+  const PROXY_LAYOUTS = {
+    forward: {
+      nodes: [
+        {id:'corp1', x:60,  y:60,  r:12, fill:'#1e2040', stroke:'#818cf8', label:'Employee 1'},
+        {id:'corp2', x:60,  y:130, r:12, fill:'#1e2040', stroke:'#818cf8', label:'Employee 2'},
+        {id:'fwdprx',x:Math.round(PW*0.38), y:100, r:16, fill:'#2a1e00', stroke:'#f59e0b', label:'Forward\nProxy'},
+        {id:'site1', x:PW-70, y:50,  r:12, fill:'#0f2a1e', stroke:'#10b981', label:'Website A'},
+        {id:'site2', x:PW-70, y:100, r:12, fill:'#0f2a1e', stroke:'#10b981', label:'Website B'},
+        {id:'site3', x:PW-70, y:150, r:12, fill:'#0f2a1e', stroke:'#10b981', label:'Website C'},
+      ],
+      paths: [
+        {from:'corp1', to:'fwdprx', color:'#818cf8', label:'request'},
+        {from:'corp2', to:'fwdprx', color:'#818cf8', label:'request'},
+        {from:'fwdprx', to:'site1', color:'#f59e0b', label:'proxy IP (not client IP)'},
+        {from:'fwdprx', to:'site2', color:'#f59e0b', label:''},
+      ],
+      description: 'Forward Proxy: Employees route traffic through corporate proxy. Internet sees proxy IP — client identity hidden. Enables: content filtering, caching, compliance logging.',
+    },
+    reverse: {
+      nodes: [
+        {id:'user1', x:60,  y:50,  r:12, fill:'#252836', stroke:'#6b7280', label:'User A'},
+        {id:'user2', x:60,  y:100, r:12, fill:'#252836', stroke:'#6b7280', label:'User B'},
+        {id:'user3', x:60,  y:150, r:12, fill:'#252836', stroke:'#6b7280', label:'User C'},
+        {id:'revprx',x:Math.round(PW*0.38), y:100, r:16, fill:'#2a1e00', stroke:'#f59e0b', label:'Reverse\nProxy'},
+        {id:'srv1',  x:PW-70, y:50,  r:12, fill:'#0f2a1e', stroke:'#10b981', label:'Server 1'},
+        {id:'srv2',  x:PW-70, y:100, r:12, fill:'#0f2a1e', stroke:'#10b981', label:'Server 2'},
+        {id:'srv3',  x:PW-70, y:150, r:12, fill:'#0f2a1e', stroke:'#10b981', label:'Server 3'},
+      ],
+      paths: [
+        {from:'user1', to:'revprx', color:'#6b7280', label:'all users hit proxy'},
+        {from:'user2', to:'revprx', color:'#6b7280', label:''},
+        {from:'user3', to:'revprx', color:'#6b7280', label:''},
+        {from:'revprx', to:'srv1', color:'#f59e0b', label:'load balanced'},
+        {from:'revprx', to:'srv2', color:'#f59e0b', label:''},
+        {from:'revprx', to:'srv3', color:'#f59e0b', label:''},
+      ],
+      description: 'Reverse Proxy: All internet users hit the proxy (e.g. nginx, Cloudflare). Proxy load-balances to backend servers. Backends never exposed. Enables: TLS termination, DDoS protection, WAF.',
+    },
+  };
+
+  function getNodeById(layout, id) { return layout.nodes.find(n=>n.id===id); }
+
+  function drawProxyLayout(layout, packetPos, packetColor) {
+    const ctx = PCTX;
+    ctx.clearRect(0,0,PW,PC.height);
+
+    // Zone backgrounds
+    const mid = Math.round(PW*0.38);
+    ctx.fillStyle='rgba(55,65,81,0.15)'; ctx.fillRect(0,0,mid-30,PC.height);
+    ctx.fillStyle='rgba(245,158,11,0.1)'; ctx.fillRect(mid-30,0,60,PC.height);
+    ctx.fillStyle='rgba(16,185,129,0.1)'; ctx.fillRect(mid+30,0,PW-mid-30,PC.height);
+
+    // Zone labels
+    ctx.textAlign='center';
+    const lType = proxyMode==='forward' ? 'Corporate LAN' : 'Internet';
+    const rType = proxyMode==='forward' ? 'Internet' : 'Backend Servers (DMZ/Internal)';
+    label(ctx, lType,  (mid-30)/2,      14, '#6b7280', 9, true);
+    label(ctx, 'PROXY',mid,             14, '#f59e0b', 9, true);
+    label(ctx, rType,  mid+30+(PW-mid-30)/2, 14, proxyMode==='forward'?'#10b981':'#10b981', 9, true);
+
+    // Draw paths
+    ctx.setLineDash([4,3]); ctx.lineWidth=1; ctx.strokeStyle='#2e3147';
+    layout.paths.forEach(p=>{
+      const a=getNodeById(layout,p.from), b=getNodeById(layout,p.to);
+      if(!a||!b)return;
+      ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke();
+    });
+    ctx.setLineDash([]);
+
+    // Draw nodes
+    layout.nodes.forEach(n=>{
+      ctx.beginPath(); ctx.arc(n.x,n.y,n.r,0,Math.PI*2);
+      ctx.fillStyle=n.fill; ctx.fill();
+      ctx.strokeStyle=n.stroke; ctx.lineWidth=1.5; ctx.stroke();
+      // Multi-line label
+      const lines=n.label.split('\n');
+      lines.forEach((ln,i)=>{ label(ctx,ln,n.x,n.y+n.r+11+(i*11),'#8892a4',8); });
+    });
+
+    // Packet
+    if (packetPos) {
+      ctx.beginPath(); ctx.arc(packetPos.x,packetPos.y,7,0,Math.PI*2);
+      ctx.fillStyle=packetColor||'#f59e0b'; ctx.fill();
+      ctx.strokeStyle='white'; ctx.lineWidth=1.5; ctx.stroke();
+    }
+  }
+
+  window.proxySetMode = function(m) {
+    proxyMode = m;
+    document.getElementById('fwd-btn').classList.toggle('on', m==='forward');
+    document.getElementById('rev-btn').classList.toggle('on', m==='reverse');
+    if (proxyAnimId) { cancelAnimationFrame(proxyAnimId); proxyAnimId=null; }
+    drawProxyLayout(PROXY_LAYOUTS[m]);
+    document.getElementById('proxy-status').innerHTML='<span style="color:var(--text-muted)">'+PROXY_LAYOUTS[m].description+'</span>';
+  };
+
+  window.proxyAnimate = function() {
+    if (proxyAnimId) { cancelAnimationFrame(proxyAnimId); proxyAnimId=null; }
+    const layout = PROXY_LAYOUTS[proxyMode];
+    const paths = layout.paths;
+    let pathIdx = 0; let t = 0;
+    const STATUS = document.getElementById('proxy-status');
+    const SPEED = 0.025;
+
+    function tick() {
+      if (pathIdx >= paths.length) {
+        drawProxyLayout(layout, null, null);
+        STATUS.innerHTML='<span style="color:var(--green)">'+layout.description+'</span>';
+        return;
+      }
+      const p = paths[pathIdx];
+      const a = getNodeById(layout,p.from), b = getNodeById(layout,p.to);
+      t += SPEED;
+      if (t >= 1) { t=0; pathIdx++; }
+      const pos = lerp(a||{x:0,y:0}, b||{x:0,y:0}, Math.min(t,1));
+      drawProxyLayout(layout, pos, p.color);
+      if (p.label) STATUS.innerHTML='<span style="color:var(--accent2)">→ '+p.label+'</span>';
+      proxyAnimId = requestAnimationFrame(tick);
+    }
+    tick();
+  };
+
+  window.proxyReset = function() {
+    if (proxyAnimId) { cancelAnimationFrame(proxyAnimId); proxyAnimId=null; }
+    drawProxyLayout(PROXY_LAYOUTS[proxyMode]);
+    document.getElementById('proxy-status').innerHTML='<span style="color:var(--text-muted)">'+PROXY_LAYOUTS[proxyMode].description+'</span>';
+  };
+
+  // ══════════════════════════════════════════════════
+  // INIT
+  // ══════════════════════════════════════════════════
+  function init() {
+    // Topo
+    TC.width = TC.offsetWidth || 820;
+    NODES.appSrv.x = Z.int.x + Math.min(TC.width - Z.int.x - 20, 80);
+    NODES.db.x     = NODES.appSrv.x;
+    drawTopo(null);
+
+    // Proxy
+    PC.width = PC.offsetWidth || 820;
+    PROXY_LAYOUTS.reverse.nodes.find(n=>n.id==='revprx').x = Math.round(PC.width*0.38);
+    PROXY_LAYOUTS.forward.nodes.find(n=>n.id==='fwdprx').x = Math.round(PC.width*0.38);
+    PROXY_LAYOUTS.forward.nodes.forEach(n=>{ if(n.x===PC.width-70) n.x=Math.max(PC.width-80,200); });
+    PROXY_LAYOUTS.reverse.nodes.forEach(n=>{ if(n.x===PC.width-70) n.x=Math.max(PC.width-80,200); });
+    drawProxyLayout(PROXY_LAYOUTS[proxyMode]);
+    document.getElementById('proxy-status').innerHTML='<span style="color:var(--text-muted)">'+PROXY_LAYOUTS[proxyMode].description+'</span>';
+  }
+
+  if (document.readyState==='loading') document.addEventListener('DOMContentLoaded',init);
+  else init();
+})();
+</script>
+</body>
+</html>
