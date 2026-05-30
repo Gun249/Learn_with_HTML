@@ -18,7 +18,12 @@
 
     /* NAV */
     nav { width: 230px; min-width: 230px; background: var(--surface); border-right: 1px solid var(--border); padding: 28px 16px; position: sticky; top: 0; height: 100vh; overflow-y: auto; }
-    nav .logo { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.12em; color: var(--accent); margin-bottom: 20px; display: block; }
+    nav .logo { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.12em; color: var(--accent); margin-bottom: 20px; display: flex; align-items: center; gap: 6px; text-decoration: none; }
+    nav .logo:hover { color: var(--accent2); }
+    .mobile-topbar { display: none; background: var(--surface); border-bottom: 1px solid var(--border); padding: 12px 20px; position: sticky; top: 0; z-index: 100; }
+    .mobile-topbar a { color: var(--accent2); text-decoration: none; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; }
+    .mobile-topbar a:hover { color: var(--text); }
+    @media (max-width: 768px) { .mobile-topbar { display: block; } }
     nav h2 { font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted); margin-bottom: 8px; margin-top: 18px; }
     nav ol { list-style: none; counter-reset: toc; }
     nav ol li { counter-increment: toc; }
@@ -163,8 +168,18 @@
 </head>
 <body>
 
+<div class="mobile-topbar">
+  <a href="index.html">
+    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+    Learn Library
+  </a>
+</div>
+
 <nav>
-  <span class="logo">Deep Dive</span>
+  <a class="logo" href="index.html">
+    <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+    Learn Library
+  </a>
   <h2>Contents</h2>
   <ol>
     <li><a href="#why">Why It Matters</a></li>
